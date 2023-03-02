@@ -48,7 +48,8 @@ class Analyze(Command):
 
     def __check_structures(self) -> None:
         structure_results: List[StructureResults] = [
-            StructureResults(UniProtID(str(directories)), get_structure_files(Path(str(directories))))
+            StructureResults(UniProtID(self.working_directory.joinpath(str(directories)).as_uri()),
+                             get_structure_files(self.working_directory.joinpath(str(directories))))
             for directories in os.listdir(self.working_directory)]
         number_of_uniprot_ids = len(structure_results)
         number_of_crystal = sum([structure.crystal_structures for structure in structure_results])
