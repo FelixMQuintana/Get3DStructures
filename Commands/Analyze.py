@@ -52,4 +52,15 @@ class Analyze(Command):
         structure_results: List[StructureResults] = [
             StructureResults(UniProtID(str(directories)), get_structure_files(Path(str(directories))))
             for directories in os.listdir(self.working_directory)]
-        matplotlib
+        number_of_uniprot_ids = len(structure_results)
+        number_of_crystal = sum([structure.crystal_structures for structure in structure_results])
+        number_of_homology = sum([structure.homology_structures for structure in structure_results])
+        print(f"Number of uniprotIDs {number_of_uniprot_ids}")
+        print(f"Number of crystals {number_of_crystal}")
+        print(f"Number of homology {number_of_homology}")
+        #explode = (0, 0.1, 0, 0)  # only "explode" the 2nd slice (i.e. 'Hogs')
+
+        #fig, ax = plt.subplots()
+        #ax.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%',
+            #   shadow=True, startangle=90)
+        #plt.show()
