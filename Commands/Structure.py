@@ -4,9 +4,9 @@ from typing import Optional, List, Dict
 
 from Commands.command import Command, UniProtID
 from lib.const import COLABFOLD_WORKING_DIRECTORY, ALLOWED_EXT, COLABFOLD_OPTIONS, ALPHA_FOLD_EXT, \
-    ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses
+    ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT
 from lib.func import change_directory
-from uniprot import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery
+from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery
 import dask.dataframe as df
 
 
@@ -98,7 +98,8 @@ class Structure(Command):
         uniprot_id_strs = [uniprot.id for uniprot in self._uniprot_id_query_list]
         queried_dataframe: df.DataFrame = complete_dataframe[complete_dataframe[0].apply(
             lambda x: x in uniprot_id_strs)]
-        [AlphaFoldQuery().query(alpha_fold_model_name + ALPHA_FOLD_EXT % version)
+        [(AlphaFoldQuery().query(alpha_fold_model_name + ALPHA_FOLD_STRUCTURE_EXT % version),
+          AlphaFoldQuery().query(alpha_fold_model_name + ALPHA_FOLD_PAE_EXT % version))
          for accession, alpha_fold_model_name, version in
          zip(queried_dataframe[0], queried_dataframe[3], queried_dataframe[4]) if
          change_directory(directory=self._working_directory.joinpath(accession), skip=self._skip)]

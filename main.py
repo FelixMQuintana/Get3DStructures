@@ -8,7 +8,7 @@ from Commands.Analyze import Analyze
 from Commands.Structure import Structure
 from Commands.command import Command
 from lib.const import SUPPORTED_MODES, ALLOWED_EXT
-from uniprot import UniProtIDQuery
+from query import UniProtIDQuery
 import json
 
 # DEFAULT_STRUCTURE_PATH = "/Users/felixquintana/Downloads/FunSoCTrainingData/"

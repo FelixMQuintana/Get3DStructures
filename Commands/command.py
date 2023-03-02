@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from lib.const import ALLOWED_EXT
-from uniprot import FastaQuery, UniProtIDQuery
+from query import FastaQuery, UniProtIDQuery
 
 
 class UniProtID:

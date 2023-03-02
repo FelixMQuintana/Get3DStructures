@@ -2,14 +2,13 @@ from enum import Enum
 
 ACCESSIONS_LOOKUP_TABLE = "accession_ids.csv"
 
-ALPHA_FOLD_EXT = "-model_v%s.pdb"
-
 COLABFOLD_WORKING_DIRECTORY = "/home/felix/Software/colabfold_batch/colabfold-conda/bin/colabfold_batch"
 
 
 class SUPPORTED_MODES(Enum):
     STRUCTURE = "structure"
     ANALYZE_DATA = "analyze-dataset"
+
 
 class COLABFOLD_OPTIONS(Enum):
     MSA_MODE = " --msa-mode %s "
@@ -38,3 +37,7 @@ class FUNSOCS(Enum):
     DEGRADE_ECM = "DegradeECM"
     DEVELOPMENT_IN_HOST = "DevelopmentInHost"
     DISABLE_ORGAN = "DisableOrgan"
+
+
+ALPHA_FOLD_STRUCTURE_EXT = "-model_v%s" + ALLOWED_EXT.PDB.value
+ALPHA_FOLD_PAE_EXT = "-predicted_aligned_error_v%s" + ALLOWED_EXT.JSON.value
