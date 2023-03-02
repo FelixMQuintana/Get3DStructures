@@ -110,7 +110,7 @@ class CommandDigest:
 
 
 MODE_OPTIONS = {SUPPORTED_MODES.STRUCTURE.value: CommandDigest.structure,
-                SUPPORTED_MODES.STRUCTURE.ANALYZE_DATA: CommandDigest.analyze_data}
+                SUPPORTED_MODES.STRUCTURE.ANALYZE_DATA.value: CommandDigest.analyze_data}
 
 if __name__ == '__main__':
     namespace, extra = get_args()
