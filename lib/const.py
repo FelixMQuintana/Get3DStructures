@@ -9,7 +9,7 @@ COLABFOLD_WORKING_DIRECTORY = "/home/felix/Software/colabfold_batch/colabfold-co
 
 class SUPPORTED_MODES(Enum):
     STRUCTURE = "structure"
-
+    ANALYZE_DATA = "analyze-dataset"
 
 class COLABFOLD_OPTIONS(Enum):
     MSA_MODE = " --msa-mode %s "

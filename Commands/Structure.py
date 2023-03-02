@@ -2,30 +2,34 @@ import os
 from pathlib import Path
 from typing import Optional, List, Dict
 
-from Commands.command import Command
+from Commands.command import Command, UniProtID
 from lib.const import COLABFOLD_WORKING_DIRECTORY, ALLOWED_EXT, COLABFOLD_OPTIONS, ALPHA_FOLD_EXT, \
     ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses
 from lib.func import change_directory
-from uniprot import FastaQuery, UniProtIDQuery, AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery
+from uniprot import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery
 import dask.dataframe as df
 
 
-class UniProtID:
-    def __init__(self, uniprot_id: str):
-        self._id: str = self.verify(uniprot_id)
+class StructureFile:
+
+    def __init__(self, path: Path):
+        self._path: Path = path
 
     @property
-    def id(self) -> str:
-        return self._id
+    def path(self) -> Path:
+        return self._path
 
-    @staticmethod
-    def verify(id: str):
-        return id
 
-    def query(self) -> dict:
-        FastaQuery().query(self._id + ALLOWED_EXT.FASTA.value)
-        uni_query = UniProtIDQuery(self._id + ALLOWED_EXT.JSON.value)
-        return uni_query.parse_response(uni_query.query(self._id))
+class HomologyStructure(StructureFile):
+    """
+
+    """
+
+
+class CrystalStructure(StructureFile):
+    """
+
+    """
 
 
 def generate_alpha_fold_structures(uniprotid: UniProtID):
@@ -89,7 +93,7 @@ class Structure(Command):
 
     def get_structures(self, uniprotid: UniProtID):
         get_pdb_structures(uniprotid.query())
-        pdbs = [file for file in os.listdir(self._working_directory.joinpath(uniprotid.id)) if file.endswith(ALLOWED_EXT.PDB.value)]
+        pdbs = [file for file in os.listdir(self._working_directory.joinpath(uniprotid.id)) if
+                file.endswith(ALLOWED_EXT.PDB.value)]
         if len(pdbs) == 0:
             generate_alpha_fold_structures(uniprotid)
-

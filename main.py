@@ -4,6 +4,7 @@ import os.path
 import re
 from typing import List, Dict
 
+from Commands.Analyze import Analyze
 from Commands.Structure import Structure
 from Commands.command import Command
 from lib.const import SUPPORTED_MODES, ALLOWED_EXT
@@ -71,13 +72,17 @@ def get_args() -> tuple[Namespace, list[str]]:
                         help="WORKING-DIRECTORY for any operation of the program")
     parser.add_argument('--skip', metavar="SKIP_BOOL", default=False, type=bool)
     subparser = parser.add_subparsers(help="Sub-Commands", dest="mode")
-    structures = subparser.add_parser("structure", help="Called for getting structures.")
+    structures = subparser.add_parser(SUPPORTED_MODES.STRUCTURE.value, help="Called for getting structures.")
     structures_to_check = structures.add_mutually_exclusive_group(required=True)
     structures_to_check.add_argument('--id', metavar="UniProtID",
                                      help="Specify UniProtID to look up protein structures.")
     structures_to_check.add_argument('--file', metavar="UniProtID-List", help="UnitProtID List ")
     structures.set_defaults(mode=SUPPORTED_MODES.STRUCTURE.value)
-
+    analyze_dataset = subparser.add_parser(SUPPORTED_MODES.ANALYZE_DATA.value,
+                                           help="This is called when you want an "
+                                                "introspective of the dataset generated")
+    analyze_dataset.add_argument("--all")
+    analyze_dataset.set_defaults(mode=SUPPORTED_MODES.ANALYZE_DATA.value)
     # parser.add_argument('--file', metavar='F', required=False, type=str, help="File of UniProtIDs")
     # parser.add_argument('--database', type=str, required=True, help="Location where PDB structure "
     #                                                                "database should be held. IF folders do "
@@ -99,8 +104,12 @@ class CommandDigest:
     def structure(args: Namespace) -> Command:
         return Structure(args.wd, args.id, args.file, args.skip)
 
+    @staticmethod
+    def analyze_data(args: Namespace) -> Command:
+        return Analyze(args.wd, args.all)
 
-MODE_OPTIONS = {SUPPORTED_MODES.STRUCTURE.value: CommandDigest.structure}
+MODE_OPTIONS = {SUPPORTED_MODES.STRUCTURE.value: CommandDigest.structure,
+                SUPPORTED_MODES.STRUCTURE.ANALYZE_DATA: CommandDigest.analyze_data}
 
 if __name__ == '__main__':
     namespace, extra = get_args()
