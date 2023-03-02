@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import List
 import statistics
-import matplotlib as matplotlib
+import matplotlib.pyplot as plt
 
 from Commands.Structure import CrystalStructure, HomologyStructure, get_structure_files
 from Commands.command import UniProtID, Command
@@ -58,12 +58,17 @@ class Analyze(Command):
         print(f"Number of crystals {number_of_crystal} with mean "
               f"{statistics.mean([structure.crystal_structure_count for structure in structure_results])} and stdev:"
               f"{statistics.stdev([structure.crystal_structure_count for structure in structure_results])}"
-              f"Mode: {statistics.mode([structure.crystal_structure_count for structure in structure_results])} "
-              f"and median {statistics.median([structure.crystal_structure_count for structure in structure_results])}")
+              f" Mode: {statistics.mode([structure.crystal_structure_count for structure in structure_results])} "
+              f"and median {statistics.median([structure.crystal_structure_count for structure in structure_results])}"
+              f"Max {max([structure.crystal_structure_count for structure in structure_results])}")
+        plt.hist([structure.crystal_structure_count for structure in structure_results], bins=10)
+        plt.show()
         print(f"Number of homology {number_of_homology} and mean "
               f"{statistics.mean([structure.homology_structure_count for structure in structure_results])}"
               f" and stdev: {statistics.stdev([structure.homology_structure_count for structure in structure_results])} "
               f"and median: {statistics.median([structure.homology_structure_count for structure in structure_results])}")
+        plt.hist([structure.homology_structure_count for structure in structure_results], bins=10)
+        plt.show()
         #explode = (0, 0.1, 0, 0)  # only "explode" the 2nd slice (i.e. 'Hogs')
 
         #fig, ax = plt.subplots()
