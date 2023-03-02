@@ -52,8 +52,8 @@ class Analyze(Command):
                              get_structure_files(self.working_directory.joinpath(str(directories))))
             for directories in os.listdir(self.working_directory)]
         number_of_uniprot_ids = len(structure_results)
-        number_of_crystal = sum([structure.crystal_structures for structure in structure_results])
-        number_of_homology = sum([structure.homology_structures for structure in structure_results])
+        number_of_crystal = sum([structure.crystal_structure_count for structure in structure_results])
+        number_of_homology = sum([structure.homology_structure_count for structure in structure_results])
         print(f"Number of uniprotIDs {number_of_uniprot_ids}")
         print(f"Number of crystals {number_of_crystal}")
         print(f"Number of homology {number_of_homology}")
