@@ -1,13 +1,11 @@
 import os
-from builtins import function
 from pathlib import Path
 from typing import List
 
 import matplotlib as matplotlib
 
-from Commands.Structure import CrystalStructure, HomologyStructure
+from Commands.Structure import CrystalStructure, HomologyStructure, get_structure_files
 from Commands.command import UniProtID, Command
-from lib.func import get_structure_files
 
 
 class StructureResults:
@@ -43,7 +41,7 @@ class Analyze(Command):
     def __init__(self, working_directory: str, all: bool) -> None:
         super().__init__(working_directory)
         if all:
-            self._mode: function = self.__check_structures
+            self._mode = self.__check_structures
 
     def run(self) -> None:
         self._mode()
