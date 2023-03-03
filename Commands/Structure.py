@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional, List, Dict
 
 from Commands.command import Command, UniProtID
-from lib.const import COLABFOLD_WORKING_DIRECTORY, ALLOWED_EXT, COLABFOLD_OPTIONS, ALPHA_FOLD_EXT, \
+from lib.const import COLABFOLD_WORKING_DIRECTORY, ALLOWED_EXT, COLABFOLD_OPTIONS, \
     ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT
 from lib.func import change_directory
 from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery
