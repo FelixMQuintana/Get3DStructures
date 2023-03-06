@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional, List, Dict
 
 from Commands.command import Command, UniProtID
-from lib.const import COLABFOLD_WORKING_DIRECTORY, ALLOWED_EXT, COLABFOLD_OPTIONS, ALPHA_FOLD_EXT, \
+from lib.const import COLABFOLD_WORKING_DIRECTORY, ALLOWED_EXT, COLABFOLD_OPTIONS, \
     ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT
 from lib.func import change_directory
 from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery
@@ -25,6 +25,24 @@ class HomologyStructure(StructureFile):
 
     """
 
+    def __init__(self, path: Path):
+        super().__init__(path)
+        self._piddt: Optional[List[float]] = None
+
+    @property
+    def piddt(self) -> List[float]:
+        return self._piddt
+
+    @piddt.setter
+    def piddt(self, piddt_list: List[float]) -> None:
+        self._piddt = piddt_list
+
+
+def read_af_piddt(alpha_fold_structure_path: HomologyStructure) -> List:
+    read_alpha_fold_file_obj = open(alpha_fold_structure_path.path, "r")
+    return [line.split()[10] for line in read_alpha_fold_file_obj
+            if line.startswith("ATOM") and line.split()[2] == "C"]
+
 
 class CrystalStructure(StructureFile):
     """
@@ -39,7 +57,9 @@ def get_structure_files(directory: Path) -> tuple[List[CrystalStructure], List[H
     for file in os.listdir(directory):
         if str(file).startswith("AF") and str(file).endswith(ALLOWED_EXT.PDB.value) or \
                 str(file).startswith("sp") and str(file).endswith(ALLOWED_EXT.PDB.value):
-            homology_modelling.append(HomologyStructure(Path(str(file))))
+            homology_structure = HomologyStructure(Path(str(file)))
+            homology_structure.piddt = read_af_piddt(homology_structure)
+            homology_modelling.append(homology_structure)
         elif str(file).endswith(ALLOWED_EXT.PDB.value):
             crystal_structures.append(CrystalStructure(Path(str(file))))
     return crystal_structures, homology_modelling

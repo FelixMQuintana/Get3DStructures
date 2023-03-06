@@ -82,6 +82,8 @@ def get_args() -> tuple[Namespace, list[str]]:
                                            help="This is called when you want an "
                                                 "introspective of the dataset generated")
     analyze_dataset.add_argument("--all", type=bool)
+    #analyze_dataset.add_argument("--pae", type=)
+    analyze_dataset.add_argument("--af", type=bool, help="Called to analyze AF structures.")
     analyze_dataset.set_defaults(mode=SUPPORTED_MODES.ANALYZE_DATA.value)
     # parser.add_argument('--file', metavar='F', required=False, type=str, help="File of UniProtIDs")
     # parser.add_argument('--database', type=str, required=True, help="Location where PDB structure "
@@ -106,7 +108,7 @@ class CommandDigest:
 
     @staticmethod
     def analyze_data(args: Namespace) -> Command:
-        return Analyze(args.wd, args.all)
+        return Analyze(args.wd, args.all, args.af)
 
 
 MODE_OPTIONS = {SUPPORTED_MODES.STRUCTURE.value: CommandDigest.structure,
