@@ -7,6 +7,7 @@ COLABFOLD_WORKING_DIRECTORY = "/home/felix/Software/colabfold_batch/colabfold-co
 
 class SUPPORTED_MODES(Enum):
     STRUCTURE = "structure"
+    REPAIR_STRUCTURES = "repair-structure"
     ANALYZE_DATA = "analyze-dataset"
 
 
