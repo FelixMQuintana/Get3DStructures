@@ -94,6 +94,7 @@ def get_args() -> tuple[Namespace, list[str]]:
                                                               "PDB Files in WORKING_DIRECTORY to be repaired.")
     fixer.add_argument("--file", metavar="PDB_FILE", type=str, help="Called when you want fix a specific PDB_FILE",
                        default=False)
+    fixer.add_argument("--ds", metavar="DATASET-LOCATION", type=str, help="Where to save new CIF files.", required=True)
     # parser.add_argument('--file', metavar='F', required=False, type=str, help="File of UniProtIDs")
     # parser.add_argument('--database', type=str, required=True, help="Location where PDB structure "
     #                                                                "database should be held. IF folders do "
@@ -121,7 +122,7 @@ class CommandDigest:
 
     @staticmethod
     def repair(args: Namespace) -> Command:
-        return RepairPDB(args.wd, args.all, args.file)
+        return RepairPDB(args.wd, args.all, args.file, args.ds)
 
 
 MODE_OPTIONS = {SUPPORTED_MODES.STRUCTURE.value: CommandDigest.structure,

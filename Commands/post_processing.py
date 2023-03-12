@@ -10,8 +10,14 @@ from lib.const import ALLOWED_EXT
 
 def read_af_piddt(alpha_fold_structure_path: HomologyStructure) -> List:
     read_alpha_fold_file_obj = open(alpha_fold_structure_path.path, "r")
-    return [line.split()[10] for line in read_alpha_fold_file_obj
-            if line.startswith("ATOM") and line.split()[2] == "C"]
+    current_res = 0
+    plddt = []
+    for line in read_alpha_fold_file_obj:
+        if line.startswith("ATOM") and line.split()[2] == "C":
+            if int(line.split()[8]) > current_res:
+                plddt.append(float(line.split()[14]))
+                current_res = int(line.split()[8])
+    return plddt
 
 
 def get_structure_files(directory: Path) -> tuple[List[CrystalStructure], List[HomologyStructure]]:
@@ -19,12 +25,12 @@ def get_structure_files(directory: Path) -> tuple[List[CrystalStructure], List[H
     crystal_structures: List[CrystalStructure] = []
     homology_modelling: List[HomologyStructure] = []
     for file in os.listdir(directory):
-        if str(file).startswith("AF") and str(file).endswith(ALLOWED_EXT.PDB.value) or \
-                str(file).startswith("sp") and str(file).endswith(ALLOWED_EXT.PDB.value):
+        if str(file).startswith("AF-" + directory.name) and str(file).endswith(ALLOWED_EXT.CIF.value) or \
+                str(file).startswith("sp") and str(file).endswith(ALLOWED_EXT.CIF.value):
             homology_structure = HomologyStructure(Path(str(file)))
             homology_structure.piddt = read_af_piddt(homology_structure)
             homology_modelling.append(homology_structure)
-        elif str(file).endswith(ALLOWED_EXT.PDB.value):
+        elif str(file).endswith(ALLOWED_EXT.CIF.value):
             crystal_structures.append(CrystalStructure(Path(str(file))))
     return crystal_structures, homology_modelling
 
@@ -73,16 +79,16 @@ class PostProcessing(Command, ABC):
         """
         super().__init__(working_directory)
         my_tuple: Optional[tuple[List[CrystalStructure], List[HomologyStructure]]] = None
-        if str(specific_file).startswith("AF") and str(specific_file).endswith(ALLOWED_EXT.PDB.value) or \
-                str(specific_file).startswith("sp") and str(specific_file).endswith(ALLOWED_EXT.PDB.value):
+        if str(specific_file).startswith("AF") and str(specific_file).endswith(ALLOWED_EXT.CIF.value) or \
+                str(specific_file).startswith("sp") and str(specific_file).endswith(ALLOWED_EXT.CIF.value):
             structure_file: HomologyStructure = HomologyStructure(Path(specific_file))
             my_tuple = ([], [structure_file])
-        elif str(specific_file).endswith(ALLOWED_EXT.PDB.value):
+        elif str(specific_file).endswith(ALLOWED_EXT.CIF.value):
             structure_file: CrystalStructure = CrystalStructure(Path(specific_file))
             my_tuple = ([structure_file], [])
         if all_files:
             self._structure_results: List[StructureResults] = \
-                [StructureResults(UniProtID(self.working_directory.joinpath(str(directories)).as_uri()),
+                [StructureResults(UniProtID(str(directories)),
                                   get_structure_files(self.working_directory.joinpath(str(directories))))
                  for directories in os.listdir(self.working_directory)]
         else:

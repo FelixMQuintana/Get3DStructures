@@ -25,6 +25,7 @@ class COLABFOLDResponses(Enum):
 
 
 class ALLOWED_EXT(Enum):
+    CIF = ".cif"
     PDB = ".pdb"
     JSON = ".json"
     FASTA = ".fasta"
@@ -40,5 +41,5 @@ class FUNSOCS(Enum):
     DISABLE_ORGAN = "DisableOrgan"
 
 
-ALPHA_FOLD_STRUCTURE_EXT = "-model_v%s" + ALLOWED_EXT.PDB.value
+ALPHA_FOLD_STRUCTURE_EXT = "-model_v%s" + ALLOWED_EXT.CIF.value
 ALPHA_FOLD_PAE_EXT = "-predicted_aligned_error_v%s" + ALLOWED_EXT.JSON.value

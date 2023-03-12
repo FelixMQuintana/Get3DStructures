@@ -1,20 +1,22 @@
 from typing import List
 import statistics
+
+import matplotlib
 import matplotlib.pyplot as plt
 
 from Commands.Structure import HomologyStructure
-from Commands.post_processing import  PostProcessing
+from Commands.post_processing import PostProcessing
+from lib.func import change_directory
+
+matplotlib.use('TkAgg')
 
 
-def read_af_piddt(alpha_fold_structure_path: HomologyStructure) -> List[float]:
-    read_alpha_fold_file_obj = open(alpha_fold_structure_path.path, "r")
-    return [float(line.split()[10]) for line in read_alpha_fold_file_obj
-            if line.startswith("ATOM") and line.split()[2] == "C"]
-
-
-def make_piddt_plot(piddt_list: List[float]):
-    plt.plot(piddt_list)
-    plt.show()
+def make_piddt_plot(alpha_fold_structure: HomologyStructure):
+    plt.plot(range(len(alpha_fold_structure.piddt)), alpha_fold_structure.piddt)
+    plt.xlabel("Residue ID")
+    plt.ylabel("PLDDT")
+    plt.savefig(alpha_fold_structure.path.with_suffix(".TIF"))
+    plt.close()
 
 
 class Analyze(PostProcessing):
@@ -28,7 +30,8 @@ class Analyze(PostProcessing):
         self._mode()
 
     def plot_piddts(self):
-        [[make_piddt_plot(alpha_fold_structure.piddt) for alpha_fold_structure in structure.homology_structures] for
+        [[make_piddt_plot(alpha_fold_structure) for alpha_fold_structure in structure.homology_structures if
+          change_directory(self.working_directory.joinpath(structure.id), skip=False)] for
          structure in self._structure_results]
 
     def get_structures_metrics(self) -> None:

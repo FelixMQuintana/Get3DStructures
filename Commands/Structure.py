@@ -58,15 +58,14 @@ def get_pdb_structures(uniprot_pdb_structure_names: Dict) -> None:
     :param database_location:
     :return:
     """
-    [PDBQuery().query(pdb_code + ALLOWED_EXT.PDB.value) for pdb_code in
+    [PDBQuery().query(pdb_code + ALLOWED_EXT.CIF.value) for pdb_code in
      uniprot_pdb_structure_names.get(UNIPROT_RESPONSE.STRUCTURE.value)]
 
 
 class Structure(Command):
-    def __init__(self, workding_directory: str, working_directory: str, uniprot_id: Optional[str] = None,
+    def __init__(self, working_directory: str, uniprot_id: Optional[str] = None,
                  uniprot_ids_list: Optional[str] = None, skip: bool = False):
         super().__init__(working_directory)
-        self._working_directory: Path = Path(workding_directory)
         if uniprot_id is not None:
             self._uniprot_id_query_list: List[UniProtID] = [UniProtID(uniprot_id)]
         else:
@@ -82,9 +81,9 @@ class Structure(Command):
         return [UniProtID(uni_id.strip("\n")) for uni_id in possible_uniprot_ids]
 
     def run(self) -> None:
-        self.look_up_alpha_fold_structures()
+      #  self.look_up_alpha_fold_structures()
         [self.get_structures(uniprot) for uniprot in self._uniprot_id_query_list if
-         change_directory(self._working_directory.joinpath(uniprot.id), skip=self._skip)]
+         change_directory(self.working_directory.joinpath(uniprot.id), skip=self._skip)]
 
     def look_up_alpha_fold_structures(self):
         """
@@ -94,7 +93,7 @@ class Structure(Command):
         :return:
         """
         complete_dataframe: df.DataFrame = df.read_csv(
-            self._working_directory.joinpath(ACCESSIONS_LOOKUP_TABLE).absolute(),
+            self.working_directory.joinpath(ACCESSIONS_LOOKUP_TABLE).absolute(),
             header=None)
         uniprot_id_strs = [uniprot.id for uniprot in self._uniprot_id_query_list]
         queried_dataframe: df.DataFrame = complete_dataframe[complete_dataframe[0].apply(
@@ -103,11 +102,11 @@ class Structure(Command):
           AlphaFoldQuery().query(alpha_fold_model_name + ALPHA_FOLD_PAE_EXT % version))
          for accession, alpha_fold_model_name, version in
          zip(queried_dataframe[0], queried_dataframe[3], queried_dataframe[4]) if
-         change_directory(directory=self._working_directory.joinpath(accession), skip=self._skip)]
+         change_directory(directory=self.working_directory.joinpath(accession), skip=self._skip)]
 
     def get_structures(self, uniprotid: UniProtID):
         get_pdb_structures(uniprotid.query())
-        pdbs = [file for file in os.listdir(self._working_directory.joinpath(uniprotid.id)) if
-                file.endswith(ALLOWED_EXT.PDB.value)]
+        pdbs = [file for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if
+                file.endswith(ALLOWED_EXT.CIF.value)]
         if len(pdbs) == 0:
             generate_alpha_fold_structures(uniprotid)
