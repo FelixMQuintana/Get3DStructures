@@ -81,7 +81,7 @@ class Structure(Command):
         return [UniProtID(uni_id.strip("\n")) for uni_id in possible_uniprot_ids]
 
     def run(self) -> None:
-      #  self.look_up_alpha_fold_structures()
+        self.look_up_alpha_fold_structures()
         [self.get_structures(uniprot) for uniprot in self._uniprot_id_query_list if
          change_directory(self.working_directory.joinpath(uniprot.id), skip=self._skip)]
 

@@ -85,6 +85,7 @@ def get_args() -> tuple[Namespace, list[str]]:
     analyze_dataset.add_argument("--all", type=bool, default=True)
     analyze_dataset.add_argument("--file", metavar="PDB_FILE", type=str, help="Path of specific PDB file you'd like "
                                                                               "to investigate")
+    analyze_dataset.add_argument("--mode", type=str, choices=["stats", "plddt"], help="Can be set as ")
     analyze_dataset.add_argument("--stats", type=bool, default=False, help="Returns statistics on dataset specified "
                                                                            "by WORKING_DIRECTORY")
     analyze_dataset.add_argument("--plddt", type=bool, help="Called to analyze PLDDT plots.")
@@ -95,6 +96,8 @@ def get_args() -> tuple[Namespace, list[str]]:
     fixer.add_argument("--file", metavar="PDB_FILE", type=str, help="Called when you want fix a specific PDB_FILE",
                        default=False)
     fixer.add_argument("--ds", metavar="DATASET-LOCATION", type=str, help="Where to save new CIF files.", required=True)
+    lbs_finder = subparser.add_parser(SUPPORTED_MODES.FIND_BINDING_SITES.value, help="This is called when you want to "
+                                                                        "locate binding site")
     # parser.add_argument('--file', metavar='F', required=False, type=str, help="File of UniProtIDs")
     # parser.add_argument('--database', type=str, required=True, help="Location where PDB structure "
     #                                                                "database should be held. IF folders do "
@@ -123,8 +126,9 @@ class CommandDigest:
     @staticmethod
     def repair(args: Namespace) -> Command:
         return RepairPDB(args.wd, args.all, args.file, args.ds)
-
-
+    @staticmethod
+    def find_characteristics(args: Namespace) -> Command:
+        return
 MODE_OPTIONS = {SUPPORTED_MODES.STRUCTURE.value: CommandDigest.structure,
                 SUPPORTED_MODES.STRUCTURE.ANALYZE_DATA.value: CommandDigest.analyze_data,
                 SUPPORTED_MODES.REPAIR_STRUCTURES.value: CommandDigest.repair}

@@ -9,7 +9,7 @@ class SUPPORTED_MODES(Enum):
     STRUCTURE = "structure"
     REPAIR_STRUCTURES = "repair-structure"
     ANALYZE_DATA = "analyze-dataset"
-
+    FIND_BINDING_SITES = "find-binding-sites"
 
 class COLABFOLD_OPTIONS(Enum):
     MSA_MODE = " --msa-mode %s "

@@ -25,7 +25,8 @@ class Analyze(PostProcessing):
         super().__init__(working_directory=working_directory, all_files=all_files, specific_file=specific_file)
         if piddt_plots:
             self._mode = self.plot_piddts
-
+        else:
+            self._mode = self.get_structures_metrics
     def run(self) -> None:
         self._mode()
 
@@ -33,6 +34,8 @@ class Analyze(PostProcessing):
         [[make_piddt_plot(alpha_fold_structure) for alpha_fold_structure in structure.homology_structures if
           change_directory(self.working_directory.joinpath(structure.id), skip=False)] for
          structure in self._structure_results]
+
+#    def get_ligand_binding_sites(self, ):
 
     def get_structures_metrics(self) -> None:
         number_of_uniprot_ids = len(self._structure_results)
@@ -55,3 +58,12 @@ class Analyze(PostProcessing):
         plt.show()
         print([[statistics.mean(structure.piddt) for structure in structure.homology_structures] for structure in
                self._structure_results])
+        plddt_results = [(uniprotid.id, statistics.mean([statistics.mean(homology_structure.piddt) for homology_structure in uniprotid.homology_structures]))
+         for uniprotid in self._structure_results if len(uniprotid.homology_structures) > 0]
+        plt.close()
+        plt.plot(range(len(plddt_results)), [plddt[1] for plddt in plddt_results])
+        plt.show()
+        plt.savefig(self.working_directory.name + "PerStructurePLDDT.tif")
+        print(statistics.mean([plddt[1] for plddt in plddt_results]))
+        with open(self.working_directory.name + "PLDDT_RESULTS.TXT", "w") as f:
+            [f.write(plddt_result[0] + " " + str(plddt_result[1]) + "\n") for plddt_result in plddt_results]
