@@ -69,7 +69,7 @@ class StructureResults:
 
 class PostProcessing(Command, ABC):
 
-    def __init__(self, working_directory: str, all_files: bool, specific_file: str) -> None:
+    def __init__(self, working_directory: Path, specific_file: Path) -> None:
         """
 
         Args:
@@ -83,14 +83,15 @@ class PostProcessing(Command, ABC):
                 str(specific_file).startswith("sp") and str(specific_file).endswith(ALLOWED_EXT.CIF.value):
             structure_file: HomologyStructure = HomologyStructure(Path(specific_file))
             my_tuple = ([], [structure_file])
+            self._structure_results: List[StructureResults] = [
+                StructureResults(UniProtID(str(Path(specific_file).parent)), my_tuple)]
         elif str(specific_file).endswith(ALLOWED_EXT.CIF.value):
             structure_file: CrystalStructure = CrystalStructure(Path(specific_file))
             my_tuple = ([structure_file], [])
-        if all_files:
+            self._structure_results: List[StructureResults] = [
+                StructureResults(UniProtID(str(Path(specific_file).parent)), my_tuple)]
+        else:
             self._structure_results: List[StructureResults] = \
                 [StructureResults(UniProtID(str(directories)),
                                   get_structure_files(self.working_directory.joinpath(str(directories))))
                  for directories in os.listdir(self.working_directory)]
-        else:
-            self._structure_results: List[StructureResults] = [
-                StructureResults(UniProtID(str(Path(specific_file).parent)), my_tuple)]

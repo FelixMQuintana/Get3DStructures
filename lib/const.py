@@ -5,11 +5,17 @@ ACCESSIONS_LOOKUP_TABLE = "accession_ids.csv"
 COLABFOLD_WORKING_DIRECTORY = "/home/felix/Software/colabfold_batch/colabfold-conda/bin/colabfold_batch"
 
 
+class AnalysisMode(Enum):
+    PLDDT = "plddt"
+    STATS = "stats"
+
+
 class SUPPORTED_MODES(Enum):
     STRUCTURE = "structure"
     REPAIR_STRUCTURES = "repair-structure"
     ANALYZE_DATA = "analyze-dataset"
     FIND_BINDING_SITES = "find-binding-sites"
+
 
 class COLABFOLD_OPTIONS(Enum):
     MSA_MODE = " --msa-mode %s "

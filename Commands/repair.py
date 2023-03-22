@@ -14,15 +14,15 @@ from lib.func import change_directory
 
 class RepairPDB(PostProcessing):
 
-    def __init__(self, working_directory: str, all_files: bool, specific_pdb_file: Optional[str], dataset_directory: str):
-        super().__init__(working_directory, all_files, specific_pdb_file)
+    def __init__(self, working_directory: Path, specific_pdb_file: Optional[Path], dataset_directory: Path):
+        super().__init__(working_directory, specific_pdb_file)
         self.dataset_directory: Path = Path(dataset_directory)
         if not self.dataset_directory.exists():
             os.mkdir(self.dataset_directory)
 
     def run(self) -> None:
         [[self.repair_pdb(structure, uniprot_id) for structure in uniprot_id.all_structures] for uniprot_id in
-         self._structure_results if change_directory(self.working_directory.joinpath(uniprot_id.id), skip=False)]
+         self._structure_results if change_directory(self.working_directory.joinpath(uniprot_id.id))]
 
     def repair_pdb(self, pdb_structure: StructureFile, uniprot_id) -> None:
         working_dir: Path = self.dataset_directory.joinpath(uniprot_id.id)

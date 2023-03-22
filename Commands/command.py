@@ -27,7 +27,7 @@ class Command(ABC):
     """
 
     """
-    def __init__(self, working_directory: str) -> None:
+    def __init__(self, working_directory: Path) -> None:
         self.working_directory: Path = Path(working_directory)
 
 

@@ -2,13 +2,15 @@ import os
 from pathlib import Path
 from typing import Optional, List, Dict
 
+import typer
+
 from Commands.command import Command, UniProtID
 from lib.const import COLABFOLD_WORKING_DIRECTORY, ALLOWED_EXT, COLABFOLD_OPTIONS, \
     ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT
 from lib.func import change_directory
 from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery
 import dask.dataframe as df
-
+from rich.progress import track
 
 class StructureFile:
 
@@ -63,18 +65,17 @@ def get_pdb_structures(uniprot_pdb_structure_names: Dict) -> None:
 
 
 class Structure(Command):
-    def __init__(self, working_directory: str, uniprot_id: Optional[str] = None,
-                 uniprot_ids_list: Optional[str] = None, skip: bool = False):
+    def __init__(self, working_directory: Path, uniprot_id: Optional[str] = None,
+                 uniprot_ids_list: Optional[Path] = None):
         super().__init__(working_directory)
         if uniprot_id is not None:
             self._uniprot_id_query_list: List[UniProtID] = [UniProtID(uniprot_id)]
         else:
             self._uniprot_id_query_list: List[UniProtID] = self.get_list(uniprot_ids_list)
-        self._skip: bool = skip
 
     @staticmethod
-    def get_list(list_file: str) -> List[UniProtID]:
-        if not os.path.isfile(list_file):
+    def get_list(list_file: Path) -> List[UniProtID]:
+        if not list_file.exists():
             raise FileNotFoundError(f"File doesn't seem to exist: {list_file}")
         with open(list_file, "r") as file:
             possible_uniprot_ids: List[str] = file.readlines()
@@ -83,7 +84,7 @@ class Structure(Command):
     def run(self) -> None:
         self.look_up_alpha_fold_structures()
         [self.get_structures(uniprot) for uniprot in self._uniprot_id_query_list if
-         change_directory(self.working_directory.joinpath(uniprot.id), skip=self._skip)]
+         change_directory(self.working_directory.joinpath(uniprot.id))]
 
     def look_up_alpha_fold_structures(self):
         """
@@ -101,12 +102,13 @@ class Structure(Command):
         [(AlphaFoldQuery().query(alpha_fold_model_name + ALPHA_FOLD_STRUCTURE_EXT % version),
           AlphaFoldQuery().query(alpha_fold_model_name + ALPHA_FOLD_PAE_EXT % version))
          for accession, alpha_fold_model_name, version in
-         zip(queried_dataframe[0], queried_dataframe[3], queried_dataframe[4]) if
-         change_directory(directory=self.working_directory.joinpath(accession), skip=self._skip)]
+         track(zip(queried_dataframe[0], queried_dataframe[3], queried_dataframe[4])) if
+         change_directory(directory=self.working_directory.joinpath(accession))]
 
     def get_structures(self, uniprotid: UniProtID):
         get_pdb_structures(uniprotid.query())
         pdbs = [file for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if
                 file.endswith(ALLOWED_EXT.CIF.value)]
         if len(pdbs) == 0:
+            typer.secho(f"Generating AlphaFold Structures for UniProtID {uniprotid}", fg=typer.colors.BLUE)
             generate_alpha_fold_structures(uniprotid)

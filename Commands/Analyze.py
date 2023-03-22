@@ -1,11 +1,13 @@
-from typing import List
+from typing import List, Optional
 import statistics
 
 import matplotlib
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 from Commands.Structure import HomologyStructure
 from Commands.post_processing import PostProcessing
+from lib.const import AnalysisMode
 from lib.func import change_directory
 
 matplotlib.use('TkAgg')
@@ -21,21 +23,22 @@ def make_piddt_plot(alpha_fold_structure: HomologyStructure):
 
 class Analyze(PostProcessing):
 
-    def __init__(self, working_directory: str, all_files: bool, specific_file: str, piddt_plots: bool) -> None:
-        super().__init__(working_directory=working_directory, all_files=all_files, specific_file=specific_file)
-        if piddt_plots:
+    def __init__(self, working_directory: Path, specific_file: Optional[Path], mode: AnalysisMode) -> None:
+        super().__init__(working_directory=working_directory, specific_file=specific_file)
+        if mode.value == AnalysisMode.PLDDT:
             self._mode = self.plot_piddts
         else:
             self._mode = self.get_structures_metrics
+
     def run(self) -> None:
         self._mode()
 
     def plot_piddts(self):
         [[make_piddt_plot(alpha_fold_structure) for alpha_fold_structure in structure.homology_structures if
-          change_directory(self.working_directory.joinpath(structure.id), skip=False)] for
+          change_directory(self.working_directory.joinpath(structure.id))] for
          structure in self._structure_results]
 
-#    def get_ligand_binding_sites(self, ):
+    #    def get_ligand_binding_sites(self, ):
 
     def get_structures_metrics(self) -> None:
         number_of_uniprot_ids = len(self._structure_results)
@@ -58,8 +61,9 @@ class Analyze(PostProcessing):
         plt.show()
         print([[statistics.mean(structure.piddt) for structure in structure.homology_structures] for structure in
                self._structure_results])
-        plddt_results = [(uniprotid.id, statistics.mean([statistics.mean(homology_structure.piddt) for homology_structure in uniprotid.homology_structures]))
-         for uniprotid in self._structure_results if len(uniprotid.homology_structures) > 0]
+        plddt_results = [(uniprotid.id, statistics.mean(
+            [statistics.mean(homology_structure.piddt) for homology_structure in uniprotid.homology_structures]))
+                         for uniprotid in self._structure_results if len(uniprotid.homology_structures) > 0]
         plt.close()
         plt.plot(range(len(plddt_results)), [plddt[1] for plddt in plddt_results])
         plt.show()

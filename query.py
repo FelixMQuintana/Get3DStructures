@@ -48,7 +48,7 @@ class HTMLQuery:
         http_ = requests.Session()
 
         # Retry has been set for all server related errors
-        retry_ = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        retry_ = Retry(total=5, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
         adaptor = HTTPAdapter(max_retries=retry_)
         http_.mount('https://', adaptor)
 
