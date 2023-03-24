@@ -1,14 +1,22 @@
 from enum import Enum
 
+import typer
+
 ACCESSIONS_LOOKUP_TABLE = "accession_ids.csv"
-
+APP_NAME = "StructCompare"
+APP_DIRECTORY = typer.get_app_dir(APP_NAME)
+CONFIG_PATH = APP_DIRECTORY + "/config.json"
 COLABFOLD_WORKING_DIRECTORY = "/home/felix/Software/colabfold_batch/colabfold-conda/bin/colabfold_batch"
-
+THREAD_COUNT = "thread_count"
+LOGFILE = "log.txt"
 
 class AnalysisMode(Enum):
     PLDDT = "plddt"
     STATS = "stats"
 
+class StructureCharacteristicsMode(Enum):
+    AUTOSITE = "Autosite"
+    #LIGANDBINDING
 
 class SUPPORTED_MODES(Enum):
     STRUCTURE = "structure"

@@ -1,12 +1,18 @@
 import abc
 import json
+import threading
 from enum import Enum
+from pathlib import Path
 from typing import Optional, List, Dict
 import sys
-
+import typer
 import requests
 from requests.sessions import HTTPAdapter
-from requests.adapters import Retry
+from requests.adapters import Retry, Response
+import logging
+from lib.const import APP_DIRECTORY, LOGFILE
+
+logging.getLogger("rich")
 
 
 class UNIPROT_RESPONSE(Enum):
@@ -20,11 +26,12 @@ class HTMLQuery:
 
     """
 
-    def __init__(self):
+    def __init__(self, output_directory: Path):
         """
         """
-        self._response_history: List[Dict] = []
+        self._response_history: List = []
         self._session = self.create_http_session()
+        self._output_directory: Path = output_directory
 
     @property
     def response_history(self):
@@ -39,6 +46,7 @@ class HTMLQuery:
 
         :return:
         """
+
     @staticmethod
     def create_http_session():
         """
@@ -61,12 +69,12 @@ class HTMLQuery:
         :return:
         """
 
-        print("Querying:" + str(self.html_base) + query)
+        logging.info("Querying:" + str(self.html_base) + query)
 
         response = self._session.get(str(self.html_base) + query, headers={"Accept": "application/json"})
         return self._query_cleanup(response)
 
-    def _query_cleanup(self, response) -> Optional[Dict]:
+    def _query_cleanup(self, response) -> None:
         """
 
         :param response:
@@ -77,8 +85,14 @@ class HTMLQuery:
         elif not response.ok:
             response.raise_for_status()
             sys.exit(1)
-        self._response_history = response
-        open(response.request.url.split(self.html_base)[1], 'wb').write(response.content)
+        if response.headers["Content-Type"] == "application/json":
+            self._response_history.append(response.json()[0])
+        else:
+            self._response_history.append(response.content)
+        lock = threading.Lock()
+        with lock:
+            open(self._output_directory.joinpath(response.request.url.split(self.html_base)[1]).as_posix(), 'wb').write(
+                response.content)
         return None
 
 
@@ -86,57 +100,43 @@ class UniProtIDQuery(HTMLQuery):
     """
 
     """
-    def __init__(self, meta_data_file_name: str):
-        super().__init__()
+
+    def __init__(self, meta_data_file_name: str, output_directory: Path):
+        super().__init__(output_directory)
         self._meta_data_file_name: str = meta_data_file_name
 
-    def _query_cleanup(self, response) -> Dict:
-        """
-
-        :param response:
-        :return:
-        """
-
-        if not response.ok:
-            response.raise_for_status()
-            sys.exit(1)
-        self._response_history = response.json()[0]
-        return response.json()[0]
 
     @property
     def html_base(self) -> str:
         return "https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=100&accession="
 
-    def _parse_response(self, response: Dict) -> Dict:
+    def parse_response(self) -> Dict:
         with open(self._meta_data_file_name, 'w') as out:
-            json.dump(response, out)
-        accession = response.get(UNIPROT_RESPONSE.ACCESSION.value)
-        data: List[Dict] = response.get(UNIPROT_RESPONSE.DB_REFERENCES.value)
+            json.dump(self.response_history[0], out)
+        accession = self.response_history[0].get(UNIPROT_RESPONSE.ACCESSION.value)
+        data: List[Dict] = self.response_history[0].get(UNIPROT_RESPONSE.DB_REFERENCES.value)
         if data is None:
             raise UserWarning(f"No known model! {data}")
         pdb_results: List[str] = [entry.get('id') for entry in data if entry.get('type') == "PDB"]
         return {UNIPROT_RESPONSE.ACCESSION.value: accession,
                 UNIPROT_RESPONSE.STRUCTURE.value: pdb_results}
 
-    def parse_response(self, response: Optional[Dict] = None) -> Dict:
-        """
-
-        :return:
-        """
-        return self._parse_response(response)
 
 class FastaQuery(HTMLQuery):
     """
 
     """
+
     @property
     def html_base(self) -> str:
         return "https://rest.uniprot.org/uniprotkb/"
+
 
 class PDBQuery(HTMLQuery):
     """
 
     """
+
     @property
     def html_base(self) -> str:
         return "https://files.rcsb.org/download/"

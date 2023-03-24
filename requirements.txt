@@ -1,2 +1,8 @@
-dask~=2023.2.0
-matplotlib
+dask~=2022.7.0
+matplotlib~=3.5.2
+pathlib~=1.0.1
+typer~=0.7.0
+pdbfixer~=1.8.1
+openmm~=7.6.0
+rich~=12.6.0
+requests~=2.28.1
