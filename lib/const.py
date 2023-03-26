@@ -7,22 +7,33 @@ APP_NAME = "StructCompare"
 APP_DIRECTORY = typer.get_app_dir(APP_NAME)
 CONFIG_PATH = APP_DIRECTORY + "/config.json"
 COLABFOLD_WORKING_DIRECTORY = "/home/felix/Software/colabfold_batch/colabfold-conda/bin/colabfold_batch"
-THREAD_COUNT = "thread_count"
 LOGFILE = "log.txt"
+
 
 class AnalysisMode(Enum):
     PLDDT = "plddt"
     STATS = "stats"
 
+class CONFIG_OPTIONS(Enum):
+    DATABASE_LOCATION = "database_location"
+    THREAD_COUNT = "thread_count"
+    STRUCTURE_TYPE = "structure_type"
+
 class StructureCharacteristicsMode(Enum):
     AUTOSITE = "Autosite"
-    #LIGANDBINDING
+    # LIGANDBINDING
+
 
 class SUPPORTED_MODES(Enum):
     STRUCTURE = "structure"
     REPAIR_STRUCTURES = "repair-structure"
     ANALYZE_DATA = "analyze-dataset"
     FIND_BINDING_SITES = "find-binding-sites"
+
+
+class SUPPORTED_STRUCTURE_TYPES(Enum):
+    PDB = "pdb"
+    CIF = "cif"
 
 
 class COLABFOLD_OPTIONS(Enum):
@@ -55,5 +66,5 @@ class FUNSOCS(Enum):
     DISABLE_ORGAN = "DisableOrgan"
 
 
-ALPHA_FOLD_STRUCTURE_EXT = "-model_v%s" + ALLOWED_EXT.CIF.value
+ALPHA_FOLD_STRUCTURE_EXT = "-model_v%s"
 ALPHA_FOLD_PAE_EXT = "-predicted_aligned_error_v%s" + ALLOWED_EXT.JSON.value

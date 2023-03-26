@@ -5,33 +5,19 @@ from typing import List, Optional
 
 from Commands.Structure import CrystalStructure, HomologyStructure, StructureFile
 from Commands.command import Command, UniProtID
-from lib.const import ALLOWED_EXT
 
 
-def read_af_piddt(alpha_fold_structure_path: HomologyStructure) -> List:
-    read_alpha_fold_file_obj = open(alpha_fold_structure_path.path, "r")
-    current_res = 0
-    plddt = []
-    for line in read_alpha_fold_file_obj:
-        if line.startswith("ATOM") and line.split()[2] == "C":
-            if int(line.split()[8]) > current_res:
-                plddt.append(float(line.split()[14]))
-                current_res = int(line.split()[8])
-    return plddt
-
-
-def get_structure_files(directory: Path) -> tuple[List[CrystalStructure], List[HomologyStructure]]:
+def get_structure_files(directory: Path, structure_type: str) -> tuple[List[CrystalStructure], List[HomologyStructure]]:
     os.chdir(directory)
     crystal_structures: List[CrystalStructure] = []
     homology_modelling: List[HomologyStructure] = []
     for file in os.listdir(directory):
-        if str(file).startswith("AF-" + directory.name) and str(file).endswith(ALLOWED_EXT.CIF.value) or \
-                str(file).startswith("sp") and str(file).endswith(ALLOWED_EXT.CIF.value):
-            homology_structure = HomologyStructure(Path(str(file)))
-            homology_structure.piddt = read_af_piddt(homology_structure)
+        if str(file).startswith("AF-" + directory.name) and str(file).endswith("." + structure_type) or \
+                str(file).startswith("sp") and str(file).endswith("." + structure_type):
+            homology_structure = HomologyStructure(directory.joinpath(Path(str(file))))
             homology_modelling.append(homology_structure)
-        elif str(file).endswith(ALLOWED_EXT.CIF.value):
-            crystal_structures.append(CrystalStructure(Path(str(file))))
+        elif str(file).endswith("." + structure_type):
+            crystal_structures.append(CrystalStructure(directory.joinpath(Path(str(file)))))
     return crystal_structures, homology_modelling
 
 
@@ -69,7 +55,7 @@ class StructureResults:
 
 class PostProcessing(Command, ABC):
 
-    def __init__(self, working_directory: Path, specific_file: Path) -> None:
+    def __init__(self, specific_file: Path) -> None:
         """
 
         Args:
@@ -77,21 +63,22 @@ class PostProcessing(Command, ABC):
             all_files:
             specific_file:
         """
-        super().__init__(working_directory)
+        super().__init__()
         my_tuple: Optional[tuple[List[CrystalStructure], List[HomologyStructure]]] = None
-        if str(specific_file).startswith("AF") and str(specific_file).endswith(ALLOWED_EXT.CIF.value) or \
-                str(specific_file).startswith("sp") and str(specific_file).endswith(ALLOWED_EXT.CIF.value):
+        if str(specific_file).startswith("AF") and str(specific_file).endswith("." + self.structure_type) or \
+                str(specific_file).startswith("sp") and str(specific_file).endswith("." + self.structure_type):
             structure_file: HomologyStructure = HomologyStructure(Path(specific_file))
             my_tuple = ([], [structure_file])
             self._structure_results: List[StructureResults] = [
-                StructureResults(UniProtID(str(Path(specific_file).parent)), my_tuple)]
-        elif str(specific_file).endswith(ALLOWED_EXT.CIF.value):
+                StructureResults(UniProtID(str(Path(specific_file).parent), self.working_directory), my_tuple)]
+        elif str(specific_file).endswith("." + self.structure_type):
             structure_file: CrystalStructure = CrystalStructure(Path(specific_file))
             my_tuple = ([structure_file], [])
             self._structure_results: List[StructureResults] = [
-                StructureResults(UniProtID(str(Path(specific_file).parent)), my_tuple)]
+                StructureResults(UniProtID(str(Path(specific_file).parent), self.working_directory), my_tuple)]
         else:
             self._structure_results: List[StructureResults] = \
-                [StructureResults(UniProtID(str(directories)),
-                                  get_structure_files(self.working_directory.joinpath(str(directories))))
+                [StructureResults(UniProtID(str(directories), self.working_directory),
+                                  get_structure_files(self.working_directory.joinpath(str(directories)),
+                                                      self.structure_type))
                  for directories in os.listdir(self.working_directory)]

@@ -23,8 +23,8 @@ def make_piddt_plot(alpha_fold_structure: HomologyStructure):
 
 class Analyze(PostProcessing):
 
-    def __init__(self, working_directory: Path, specific_file: Optional[Path], mode: AnalysisMode) -> None:
-        super().__init__(working_directory=working_directory, specific_file=specific_file)
+    def __init__(self, specific_file: Optional[Path], mode: AnalysisMode) -> None:
+        super().__init__(specific_file=specific_file)
         if mode.value == AnalysisMode.PLDDT:
             self._mode = self.plot_piddts
         else:

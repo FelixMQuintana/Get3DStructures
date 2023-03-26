@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import Optional, List
 import typer
 from Commands.command import Command, UniProtID
-from lib.const import COLABFOLD_WORKING_DIRECTORY, ALLOWED_EXT, COLABFOLD_OPTIONS, \
-    ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT, APP_DIRECTORY
+from lib.const import COLABFOLD_WORKING_DIRECTORY, COLABFOLD_OPTIONS, \
+    ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT, APP_DIRECTORY, \
+    ALLOWED_EXT
 from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery
 import dask.dataframe as df
 from rich.progress import track
@@ -32,14 +33,18 @@ class HomologyStructure(StructureFile):
         self._piddt: Optional[List[float]] = None
 
     @property
-    def piddt(self) -> List[float]:
+    def piddt(self) -> List:
+        if self._piddt is None:
+            read_alpha_fold_file_obj = open(self.path.with_suffix(ALLOWED_EXT.CIF.value), "r")
+            current_res = 0
+            plddt = []
+            for line in read_alpha_fold_file_obj:
+                if line.startswith("ATOM") and line.split()[2] == "C":
+                    if int(line.split()[8]) > current_res:
+                        plddt.append(float(line.split()[14]))
+                        current_res = int(line.split()[8])
+            self._piddt = plddt
         return self._piddt
-
-    @piddt.setter
-    def piddt(self, piddt_list: List[float]) -> None:
-        self._piddt = piddt_list
-
-
 class CrystalStructure(StructureFile):
     """
 
@@ -53,10 +58,11 @@ def generate_alpha_fold_structures(uniprotid: UniProtID):
               COLABFOLDResponses.UNPAIRED_PAIRED.value + uniprotid.path.as_posix() + " " + uniprotid.path.parent.as_posix())
 
 
+
 class Structure(Command):
-    def __init__(self, working_directory: Path, uniprot_id: Optional[str] = None,
+    def __init__(self, uniprot_id: Optional[str] = None,
                  uniprot_ids_list: Optional[Path] = None):
-        super().__init__(working_directory)
+        super().__init__()
         if uniprot_id is not None:
             self._uniprot_id_query_list: List[UniProtID] = [UniProtID(uniprot_id, self.working_directory)]
         else:
@@ -105,7 +111,8 @@ class Structure(Command):
             lambda x: x in uniprot_id_strs)]
         queried_dataframe = queried_dataframe.compute()
         threads = [(threading.Thread(target=AlphaFoldQuery(self.working_directory.joinpath(accession)).query,
-                                     args=[alpha_fold_model_name + ALPHA_FOLD_STRUCTURE_EXT % version])
+                                     args=[alpha_fold_model_name + ALPHA_FOLD_STRUCTURE_EXT % version + "." +
+                                           self.structure_type])
                     , threading.Thread(target=AlphaFoldQuery(self.working_directory.joinpath(accession)).query,
                                        args=[alpha_fold_model_name + ALPHA_FOLD_PAE_EXT % version]))
                    for accession, alpha_fold_model_name, version in
@@ -116,7 +123,7 @@ class Structure(Command):
     def get_structures(self, uniprotid: UniProtID):
         self.get_pdb_structures(uniprotid)
         pdbs = [file for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if
-                file.endswith(ALLOWED_EXT.CIF.value)]
+                file.endswith("." + self.structure_type)]
         if len(pdbs) == 0:
             print(threading.active_count())
             typer.secho(f"Generating AlphaFold Structures for UniProtID {uniprotid.id}", fg=typer.colors.BLUE)
@@ -130,7 +137,7 @@ class Structure(Command):
         """
         threads = [
             threading.Thread(target=PDBQuery(self.working_directory.joinpath(uniprot_id.id)).query,
-                             args=[pdb_code + ALLOWED_EXT.CIF.value]) for
+                             args=[pdb_code + "." + self.structure_type]) for
             pdb_code in
             uniprot_id.structural_data.get(UNIPROT_RESPONSE.STRUCTURE.value)]
         [t.start() for t in threads]

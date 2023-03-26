@@ -2,12 +2,8 @@ import logging
 from multiprocessing import pool
 from abc import ABC, abstractmethod
 from pathlib import Path
-import threading
 from typing import Optional, Dict
-
-import typer
-
-from lib.const import ALLOWED_EXT, CONFIG_PATH, THREAD_COUNT
+from lib.const import ALLOWED_EXT, CONFIG_PATH, CONFIG_OPTIONS, SUPPORTED_STRUCTURE_TYPES
 from lib.func import load_json
 from query import FastaQuery, UniProtIDQuery
 
@@ -50,10 +46,13 @@ class Command(ABC):
 
     """
 
-    def __init__(self, working_directory: Path) -> None:
-        self.working_directory: Path = Path(working_directory)
+    def __init__(self) -> None:
+
         config_json = load_json(Path(CONFIG_PATH))
-        self.thread_pool = pool.ThreadPool(config_json[THREAD_COUNT])
+        self.thread_pool = pool.ThreadPool(config_json[CONFIG_OPTIONS.THREAD_COUNT.value])
+        self.working_directory: Path = Path(config_json[CONFIG_OPTIONS.DATABASE_LOCATION.value])
+        self.structure_type: str = config_json[CONFIG_OPTIONS.STRUCTURE_TYPE.value]
+        self.args = config_json
 
     @abstractmethod
     def run(self) -> None:
