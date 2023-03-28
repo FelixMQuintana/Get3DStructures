@@ -6,3 +6,6 @@ pdbfixer~=1.8.1
 openmm~=7.6.0
 rich~=12.6.0
 requests~=2.28.1
+numpy~=1.21.5
+mdtraj~=1.9.7
+httpx~=0.23.3

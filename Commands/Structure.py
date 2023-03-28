@@ -45,6 +45,8 @@ class HomologyStructure(StructureFile):
                         current_res = int(line.split()[8])
             self._piddt = plddt
         return self._piddt
+
+
 class CrystalStructure(StructureFile):
     """
 
@@ -56,7 +58,6 @@ def generate_alpha_fold_structures(uniprotid: UniProtID):
               COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value + COLABFOLD_OPTIONS.AMBER.value +
               COLABFOLD_OPTIONS.NUM_ENSEMBLE.value % "5" + COLABFOLD_OPTIONS.PAIR_MODE.value %
               COLABFOLDResponses.UNPAIRED_PAIRED.value + uniprotid.path.as_posix() + " " + uniprotid.path.parent.as_posix())
-
 
 
 class Structure(Command):
