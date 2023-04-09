@@ -33,6 +33,10 @@ class StructureResults:
         return self._accession.id
 
     @property
+    def fasta(self) -> str:
+        return self._accession.fasta
+
+    @property
     def crystal_structures(self) -> List[CrystalStructure]:
         return self._crystal_structures
 

@@ -4,6 +4,8 @@ import threading
 from pathlib import Path
 from typing import Optional, List
 import typer
+from fasta_reader import read_fasta
+
 from Commands.command import Command, UniProtID
 from lib.const import COLABFOLD_WORKING_DIRECTORY, COLABFOLD_OPTIONS, \
     ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT, APP_DIRECTORY, \
@@ -56,7 +58,7 @@ class CrystalStructure(StructureFile):
 def generate_alpha_fold_structures(uniprotid: UniProtID):
     os.system(COLABFOLD_WORKING_DIRECTORY + COLABFOLD_OPTIONS.USE_GPU.value + COLABFOLD_OPTIONS.MSA_MODE.value %
               COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value + COLABFOLD_OPTIONS.AMBER.value +
-              COLABFOLD_OPTIONS.NUM_ENSEMBLE.value % "5" + COLABFOLD_OPTIONS.PAIR_MODE.value %
+              COLABFOLD_OPTIONS.NUM_ENSEMBLE.value % "3" + COLABFOLD_OPTIONS.PAIR_MODE.value %
               COLABFOLDResponses.UNPAIRED_PAIRED.value + uniprotid.path.as_posix() + " " + uniprotid.path.parent.as_posix())
 
 
@@ -64,6 +66,9 @@ class Structure(Command):
     def __init__(self, uniprot_id: Optional[str] = None,
                  uniprot_ids_list: Optional[Path] = None):
         super().__init__()
+        if not self.working_directory.exists():
+            logging.warning("Database working directory doesn't exist. Building now")
+            os.mkdir(self.working_directory)
         if uniprot_id is not None:
             self._uniprot_id_query_list: List[UniProtID] = [UniProtID(uniprot_id, self.working_directory)]
         else:
@@ -84,7 +89,7 @@ class Structure(Command):
         return [UniProtID(uni_id.strip("\n"), working_directory) for uni_id in possible_uniprot_ids]
 
     def run(self) -> None:
-        alpha_fold_threads = self.look_up_alpha_fold_structures()
+    #    alpha_fold_threads = self.look_up_alpha_fold_structures()
         fasta_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_fasta, args=[]) for uniprot in
                                                  self._uniprot_id_query_list]
         accession_data_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_accession_data, args=[])
@@ -93,7 +98,7 @@ class Structure(Command):
          track(zip(fasta_threads, accession_data_threads))]
         [(fasta_thread.join(), accession_data_thread.join()) for fasta_thread, accession_data_thread in
          track(zip(fasta_threads, accession_data_threads))]
-        [(threads[0].join(), threads[1].join()) for threads in track(alpha_fold_threads)]
+    #    [(threads[0].join(), threads[1].join()) for threads in track(alpha_fold_threads)]
         [self.get_structures(uniprot) for uniprot in self._uniprot_id_query_list]
         [process.wait() for process in self.active_threads]
 
@@ -125,7 +130,8 @@ class Structure(Command):
         self.get_pdb_structures(uniprotid)
         pdbs = [file for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if
                 file.endswith("." + self.structure_type)]
-        if len(pdbs) == 0:
+        fatsa_len = [[len(item.sequence) for item in read_fasta(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)))][0] for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
+        if len(pdbs) == 0 and fatsa_len <= 1000:
             print(threading.active_count())
             typer.secho(f"Generating AlphaFold Structures for UniProtID {uniprotid.id}", fg=typer.colors.BLUE)
             self.active_threads.append(self.thread_pool.apply_async(generate_alpha_fold_structures, [uniprotid]))

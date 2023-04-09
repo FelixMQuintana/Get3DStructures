@@ -1,11 +1,8 @@
 import logging
 import os
-import threading
 from pathlib import Path
 from typing import Optional
-
 import numpy as np
-from rich.progress import track
 
 from Commands.Structure import StructureFile
 from pdbfixer import PDBFixer
@@ -13,6 +10,8 @@ from openmm.app import PDBFile
 
 from Commands.post_processing import PostProcessing
 import mdtraj as md
+
+from lib.const import ALLOWED_EXT
 
 
 class RepairPDB(PostProcessing):
@@ -31,12 +30,11 @@ class RepairPDB(PostProcessing):
         self.active_threads = []
 
     def run(self) -> None:
-        threads = [[threading.Thread(target=self.repair_pdb, args=[structure, uniprot_id]) for structure in
+        threads = [[self.thread_pool.apply_async(self.repair_pdb, [structure, uniprot_id]) for structure in
                     uniprot_id.all_structures] for uniprot_id in
                    self._structure_results]
 
-        [[thread.start() for thread in list_of_threads] for list_of_threads in threads]
-        [track([thread.join() for thread in list_of_threads]) for list_of_threads in threads]
+        [[thread.wait() for thread in list_of_threads] for list_of_threads in threads]
 
     def repair_pdb(self, pdb_structure: StructureFile, uniprot_id):
         working_dir: Path = self.dataset_directory.joinpath(uniprot_id.id)
@@ -67,3 +65,5 @@ class RepairPDB(PostProcessing):
         md_traj = md.Trajectory(np_positions, md_top)
         md_traj.save(working_dir.joinpath(pdb_structure.path.name))
         PDBFile.writeFile(fixer.topology, fixer.positions, open(working_dir.joinpath(pdb_structure.path.name), "w"))
+        os.system(f"cp {pdb_structure.path.parent.joinpath(uniprot_id).with_suffix(ALLOWED_EXT.FASTA.value)}  "
+                  f"{working_dir}")

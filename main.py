@@ -10,6 +10,7 @@ from pathlib import Path
 from Commands.Analyze import Analyze
 from Commands.Characteristics import Characteristics
 from Commands.Structure import Structure
+from Commands.generate_graph import GenerateGraph
 from lib.const import ALLOWED_EXT, AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, CONFIG_OPTIONS, \
     SUPPORTED_STRUCTURE_TYPES
 from Commands.repair import RepairPDB
@@ -22,6 +23,14 @@ logging.basicConfig(
     level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
 )
 app = typer.Typer(pretty_exceptions_show_locals=False)
+
+
+@app.command()
+def graph(structure_file: Optional[Path] =
+          typer.Option(None,
+                       help="Specific structure file to find characteristics based on mode selected"), ):
+    command = GenerateGraph(structure_file)
+    command.run()
 
 
 @app.command()
@@ -39,7 +48,7 @@ def find_characteristics(mode: StructureCharacteristicsMode =
         auto_site_directory = typer.prompt(text="Autosite binaries directory?", default="~/ADFRsuite-1.0/bin/")
         with open(APP_DIRECTORY + "/config.json", "r") as json_config:
             my_json = json.load(json_config)
-            my_json[StructureCharacteristicsMode.AUTOSITE.value] =  auto_site_directory
+            my_json[StructureCharacteristicsMode.AUTOSITE.value] = auto_site_directory
         with open(APP_DIRECTORY + "/config.json", "w") as json_config:
             json.dump(my_json, json_config)
     command = Characteristics(structure_file, mode, Path(os.path.abspath(binding_site_database)))
@@ -48,7 +57,7 @@ def find_characteristics(mode: StructureCharacteristicsMode =
 
 @app.command()
 def get_structures(uniprot_id: Optional[str] = typer.Option(None, help="Specific UnitProtID to get structures for."),
-                   uniprot_id_list: Path = typer.Option(APP_DIRECTORY + "/data/UniProtIDs.txt",
+                   uniprot_id_list: Path = typer.Option(...,
                                                         help="Path to UniProtID list to find structures for.")):
     """
     This command is to populate structures based on provided uniprotID(s). Structures are pulled from the AF2 database,
@@ -60,14 +69,14 @@ def get_structures(uniprot_id: Optional[str] = typer.Option(None, help="Specific
 
 @app.command()
 def repair(new_dataset_location: Path = typer.Argument(...,
-                                                     help="Where you'd like to save the new dataset?"),
+                                                       help="Where you'd like to save the new dataset?"),
            specific_file: Optional[Path] = typer.Option(None, help="Specific file to perform repair on.")):
     """This command is to repair structures from a specified database or structure file. The repaired database is
     stored in new_dataset_location"""
     if specific_file is not None and specific_file.suffix not in {ALLOWED_EXT.CIF.value, ALLOWED_EXT.PDB.value}:
         raise FileExistsError(f"File type provided {specific_file.suffix} isn't supported. Supported types are: "
                               f"{ALLOWED_EXT.PDB.value, ALLOWED_EXT.CIF.value}")
-    command = RepairPDB(specific_file, Path( os.path.abspath(new_dataset_location)))
+    command = RepairPDB(specific_file, Path(os.path.abspath(new_dataset_location)))
     command.run()
 
 
@@ -98,12 +107,13 @@ def main(database: Path = typer.Argument(..., help="Path of database of interest
                                                           help="Structure type to perform analysis on.")):
     database = os.path.abspath(Path(database))
     config = {
-         CONFIG_OPTIONS.DATABASE_LOCATION.value: database,
-         CONFIG_OPTIONS.THREAD_COUNT.value: number_of_threads,
-         CONFIG_OPTIONS.STRUCTURE_TYPE.value: mode.value
+        CONFIG_OPTIONS.DATABASE_LOCATION.value: database,
+        CONFIG_OPTIONS.THREAD_COUNT.value: number_of_threads,
+        CONFIG_OPTIONS.STRUCTURE_TYPE.value: mode.value
     }
-    with open(APP_DIRECTORY+"/config.json", "w") as json_config:
+    with open(APP_DIRECTORY + "/config.json", "w") as json_config:
         json.dump(config, json_config)
+
 
 if __name__ == '__main__':
     app()
