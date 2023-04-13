@@ -88,8 +88,14 @@ class Structure(Command):
             possible_uniprot_ids: List[str] = file.readlines()
         return [UniProtID(uni_id.strip("\n"), working_directory) for uni_id in possible_uniprot_ids]
 
+    def exception_handler(self, args):
+        print(f'Thread failed: {args.exc_value}')
+        if isinstance(args.exc_value, FileNotFoundError):
+            self._uniprot_id_query_list.remove(args.exc_value.args[1])
+
     def run(self) -> None:
-    #    alpha_fold_threads = self.look_up_alpha_fold_structures()
+        threading.excepthook = self.exception_handler
+        alpha_fold_threads = self.look_up_alpha_fold_structures()
         fasta_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_fasta, args=[]) for uniprot in
                                                  self._uniprot_id_query_list]
         accession_data_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_accession_data, args=[])
@@ -98,7 +104,7 @@ class Structure(Command):
          track(zip(fasta_threads, accession_data_threads))]
         [(fasta_thread.join(), accession_data_thread.join()) for fasta_thread, accession_data_thread in
          track(zip(fasta_threads, accession_data_threads))]
-    #    [(threads[0].join(), threads[1].join()) for threads in track(alpha_fold_threads)]
+        [(threads[0].join(), threads[1].join()) for threads in track(alpha_fold_threads)]
         [self.get_structures(uniprot) for uniprot in self._uniprot_id_query_list]
         [process.wait() for process in self.active_threads]
 
@@ -142,6 +148,8 @@ class Structure(Command):
         :param uniprot_id:
         :return:
         """
+        if uniprot_id.structural_data is {}:
+            return None
         threads = [
             threading.Thread(target=PDBQuery(self.working_directory.joinpath(uniprot_id.id)).query,
                              args=[pdb_code + "." + self.structure_type]) for

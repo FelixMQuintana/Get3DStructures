@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, Dict
 
+import urllib3.exceptions
 from fasta_reader import read_fasta
 
 from lib.const import ALLOWED_EXT, CONFIG_PATH, CONFIG_OPTIONS, SUPPORTED_STRUCTURE_TYPES
@@ -39,11 +40,18 @@ class UniProtID:
 
     @property
     def structural_data(self) -> Dict:
+        if self._uniprot_structural_data is None:
+            return {}
         return self._uniprot_structural_data
 
     def query_accession_data(self) -> None:
         uni_query = UniProtIDQuery(self._id, self._base)
-        uni_query.query(self._id)
+        try:
+            uni_query.query(self._id)
+        except urllib3.exceptions.MaxRetryError:
+            raise FileNotFoundError (f"Maximum retries to query {self.id}", self.id)
+        except urllib3.exceptions.SSLError:
+            raise FileNotFoundError (f"Maximum retries to query {self.id}", self.id)
         self._uniprot_structural_data = uni_query.parse_response()
 
     def query_fasta(self) -> None:

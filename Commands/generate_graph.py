@@ -2,6 +2,7 @@ import threading
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+import transformers.models.bert
 from Bio import SeqIO
 from fasta_reader import read_fasta
 from transformers import BertTokenizer, BertModel
@@ -15,7 +16,8 @@ class GenerateGraph(PostProcessing):
     def __init__(self, specific_file: Path):
         super().__init__(specific_file)
         self.tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False )
-        self.model = BertModel.from_pretrained("Rostlab/prot_bert")
+        self.model: transformers.models.bert.BertModel = BertModel.from_pretrained("Rostlab/prot_bert")
+       # self.model.pooler.dense.out_features
     def run(self) -> None:
         threads = [self.thread_pool.apply_async(self.encoder, [structures]) for structures in self._structure_results]
         [fasta_thread.wait()for fasta_thread in threads]
@@ -26,6 +28,10 @@ class GenerateGraph(PostProcessing):
         contact_maps = [ContactFrequency(md.load(structure.path)).residue_contacts.sparse_matrix for structure in structures.all_structures]
         print(contact_maps)
         return (encodings, contact_maps)
+
+
+
+
 
 
 #class Encoder:

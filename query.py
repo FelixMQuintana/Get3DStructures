@@ -82,7 +82,7 @@ class HTMLQuery:
         """
         if response.status_code == 404:
             UserWarning(f"File was not found: {response.status_code}", )
-            raise FileNotFoundError(f"File was not found {response.status_code}")
+            raise FileExistsError(f"File was not found {response.status_code}")
         elif not response.ok:
             response.raise_for_status()
             sys.exit(1)
