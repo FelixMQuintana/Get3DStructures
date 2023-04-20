@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 from typing import Optional, List
 import typer
-from fasta_reader import read_fasta
+#from fasta_reader import read_fasta
 
 from Commands.command import Command, UniProtID
 from lib.const import COLABFOLD_WORKING_DIRECTORY, COLABFOLD_OPTIONS, \
@@ -101,9 +101,9 @@ class Structure(Command):
         accession_data_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_accession_data, args=[])
                                                           for uniprot in self._uniprot_id_query_list]
         [(fasta_thread.start(), accession_data_thread.start()) for fasta_thread, accession_data_thread in
-         track(zip(fasta_threads, accession_data_threads))]
+         zip(fasta_threads, accession_data_threads)]
         [(fasta_thread.join(), accession_data_thread.join()) for fasta_thread, accession_data_thread in
-         track(zip(fasta_threads, accession_data_threads))]
+         zip(fasta_threads, accession_data_threads)]
         [(threads[0].join(), threads[1].join()) for threads in track(alpha_fold_threads)]
         [self.get_structures(uniprot) for uniprot in self._uniprot_id_query_list]
         [process.wait() for process in self.active_threads]
@@ -136,8 +136,8 @@ class Structure(Command):
         self.get_pdb_structures(uniprotid)
         pdbs = [file for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if
                 file.endswith("." + self.structure_type)]
-        fatsa_len = [[len(item.sequence) for item in read_fasta(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)))][0] for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
-        if len(pdbs) == 0 and fatsa_len <= 1000:
+     #   fatsa_len = [[len(item.sequence) for item in read_fasta(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)))][0] for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
+        if len(pdbs) == 0:# and fatsa_len <= 1000:
             print(threading.active_count())
             typer.secho(f"Generating AlphaFold Structures for UniProtID {uniprotid.id}", fg=typer.colors.BLUE)
             self.active_threads.append(self.thread_pool.apply_async(generate_alpha_fold_structures, [uniprotid]))

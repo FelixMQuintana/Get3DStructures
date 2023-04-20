@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional, Dict
 
 import urllib3.exceptions
-from fasta_reader import read_fasta
 
 from lib.const import ALLOWED_EXT, CONFIG_PATH, CONFIG_OPTIONS, SUPPORTED_STRUCTURE_TYPES
 from lib.func import load_json
@@ -26,9 +25,10 @@ class UniProtID:
 
     @property
     def fasta(self) -> str:
-        iterator = read_fasta(self._path)
-        fasta_item = iterator.read_item()
-        return fasta_item.sequence
+        raise NotImplemented
+        #iterator = read_fasta(self._path)
+        #fasta_item = iterator.read_item()
+        #return fasta_item.sequence
 
     @staticmethod
     def verify(id: str):

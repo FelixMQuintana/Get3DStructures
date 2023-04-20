@@ -2,14 +2,12 @@ import logging
 import os
 from pathlib import Path
 from typing import Optional
-import numpy as np
 
 from Commands.Structure import StructureFile
 from pdbfixer import PDBFixer
 from openmm.app import PDBFile
 
 from Commands.post_processing import PostProcessing
-import mdtraj as md
 
 from lib.const import ALLOWED_EXT
 
@@ -59,11 +57,12 @@ class RepairPDB(PostProcessing):
             print(fixer.missingAtoms)
             fixer.addMissingAtoms()
         fixer.addMissingHydrogens()
+        fixer.removeHeterogens(keepWater=False)
         logging.info("Writing file %s" % working_dir.joinpath(pdb_structure.path.name))
-        np_positions = np.array([np.array([tmp.x, tmp.y, tmp.z]) for tmp in fixer.positions])
-        md_top = md.Topology.from_openmm(fixer.topology)
-        md_traj = md.Trajectory(np_positions, md_top)
-        md_traj.save(working_dir.joinpath(pdb_structure.path.name))
+       # np_positions = np.array([np.array([tmp.x, tmp.y, tmp.z]) for tmp in fixer.positions])
+       # md_top = md.Topology.from_openmm(fixer.topology)
+       # md_traj = md.Trajectory(np_positions, md_top)
+       # md_traj.save(working_dir.joinpath(pdb_structure.path.name))
         PDBFile.writeFile(fixer.topology, fixer.positions, open(working_dir.joinpath(pdb_structure.path.name), "w"))
         os.system(f"cp {pdb_structure.path.parent.joinpath(uniprot_id).with_suffix(ALLOWED_EXT.FASTA.value)}  "
                   f"{working_dir}")

@@ -9,7 +9,7 @@ from Commands.Structure import HomologyStructure
 from Commands.post_processing import PostProcessing
 from lib.const import AnalysisMode
 from lib.func import change_directory
-
+#import pandas as pd
 matplotlib.use('TkAgg')
 
 
