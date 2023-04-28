@@ -36,6 +36,9 @@ class RepairPDB(PostProcessing):
 
     def repair_pdb(self, pdb_structure: StructureFile, uniprot_id):
         working_dir: Path = self.dataset_directory.joinpath(uniprot_id.id)
+        if working_dir.joinpath(pdb_structure.path.name).exists():
+            logging.info("File exists %s skipping" % working_dir.joinpath(pdb_structure.path.name))
+            return None
         logging.info(f"Repairing {pdb_structure.path} as {working_dir.joinpath(pdb_structure.path.name)}")
         try:
             fixer = PDBFixer(filename=str(pdb_structure.path))

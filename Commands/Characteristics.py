@@ -38,9 +38,9 @@ class Characteristics(PostProcessing):
     def finding_ligand_binding_pockets(self, structure_file: StructureFile, id: str):
 
         with threading.Lock():
-            logging.info("Running the command:  %s/prepare_receptor -r %s"
-                         % (self.autosite_location, structure_file.path))
-            p1 = subprocess.Popen([self.autosite_location + "prepare_receptor -r" + structure_file.path.as_posix()],
+            logging.info("Running the command:  %s/prepare_receptor -r %s -o %s"
+                         % (self.autosite_location, structure_file.path, structure_file.path.name.split(".")[0] + ".pdbqt"))
+            p1 = subprocess.Popen([self.autosite_location + "prepare_receptor -r" + structure_file.path.as_posix() + " -o " + structure_file.path.name.split(".")[0] + ".pdbqt" ],
                                   shell=True)
             p1.wait()
             logging.info("Running the command: %sautosite -r %s -o %s" % (self.autosite_location,
@@ -52,6 +52,6 @@ class Characteristics(PostProcessing):
             if not self.binding_site_database.joinpath(id).joinpath(structure_file.path.name.split(".")[0]).exists():
                 os.mkdir(self.binding_site_database.joinpath(id).joinpath(structure_file.path.name.split(".")[0]))
             os.system("%s/autosite -r %s -o %s" % (self.autosite_location,
-                                                   structure_file.path.name.split(".")[0] + "_model0.pdbqt",
+                                                   structure_file.path.name.split(".")[0] + ".pdbqt",
                                                    self.binding_site_database.joinpath(id).joinpath(
                                                        structure_file.path.name.split(".")[0])))

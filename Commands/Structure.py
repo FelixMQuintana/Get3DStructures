@@ -3,6 +3,8 @@ import os
 import threading
 from pathlib import Path
 from typing import Optional, List
+
+import Bio.SeqIO
 import typer
 #from fasta_reader import read_fasta
 
@@ -136,11 +138,13 @@ class Structure(Command):
         self.get_pdb_structures(uniprotid)
         pdbs = [file for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if
                 file.endswith("." + self.structure_type)]
-     #   fatsa_len = [[len(item.sequence) for item in read_fasta(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)))][0] for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
-        if len(pdbs) == 0:# and fatsa_len <= 1000:
-            print(threading.active_count())
-            typer.secho(f"Generating AlphaFold Structures for UniProtID {uniprotid.id}", fg=typer.colors.BLUE)
-            self.active_threads.append(self.thread_pool.apply_async(generate_alpha_fold_structures, [uniprotid]))
+        #fasta_len = [len(Bio.SeqIO.read(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)), "fasta").seq) for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
+       # print(f"fasta {fasta_len}")
+        #fatsa_len = [[len(item.sequence) for item in read_fasta(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)))][0] for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
+     #   if len(pdbs) == 0:
+     #       print(threading.active_count())
+     #       typer.secho(f"Generating AlphaFold Structures for UniProtID {uniprotid.id}", fg=typer.colors.BLUE)
+     #       self.active_threads.append(self.thread_pool.apply_async(generate_alpha_fold_structures, [uniprotid]))
 
     def get_pdb_structures(self, uniprot_id: UniProtID) -> None:
         """
@@ -148,8 +152,9 @@ class Structure(Command):
         :param uniprot_id:
         :return:
         """
-        if uniprot_id.structural_data is {}:
+        if uniprot_id.structural_data.get(UNIPROT_RESPONSE.STRUCTURE.value) == None:
             return None
+        print(uniprot_id.structural_data.get(UNIPROT_RESPONSE.STRUCTURE.value))
         threads = [
             threading.Thread(target=PDBQuery(self.working_directory.joinpath(uniprot_id.id)).query,
                              args=[pdb_code + "." + self.structure_type]) for
