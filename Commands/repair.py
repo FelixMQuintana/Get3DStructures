@@ -1,7 +1,8 @@
 import logging
 import os
+import threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from Commands.Structure import StructureFile
 from pdbfixer import PDBFixer
@@ -27,11 +28,23 @@ class RepairPDB(PostProcessing):
          if not self.dataset_directory.joinpath(structure_result.id).exists()]
         self.active_threads = []
 
+    def exception_handler(self, args):
+        print(f'Thread failed: {args.exc_value}')
+
     def run(self) -> None:
+        threading.excepthook = self.exception_handler
+
         threads = [[self.thread_pool.apply_async(self.repair_pdb, [structure, uniprot_id]) for structure in
                     uniprot_id.all_structures] for uniprot_id in
                    self._structure_results]
-
+      #  [self.repair_pdb(structure, uniprot_id)
+      #                                    for uniprot_id in self._structure_results
+      #                                    for structure in uniprot_id.all_structures]
+      #  threads: List[threading.Thread]= [threading.Thread (target=self.repair_pdb, args=[structure, uniprot_id],)
+           #                               for uniprot_id in self._structure_results
+          #                                for structure in uniprot_id.all_structures]
+     #   [thread.start() for thread in threads]
+     #   [thread.join() for thread in threads]
         [[thread.wait() for thread in list_of_threads] for list_of_threads in threads]
 
     def repair_pdb(self, pdb_structure: StructureFile, uniprot_id):
@@ -56,16 +69,24 @@ class RepairPDB(PostProcessing):
         logging.debug("Finding Missing Atoms %s" % pdb_structure.path.name)
         fixer.findMissingAtoms()
         if fixer.missingAtoms != {}:
+            chains = list(fixer.topology.chains())
+            keys = list(fixer.missingResidues.keys())
+            for key in keys:
+                chain = chains[key[0]]
+                if key[1] == 0 or key[1] == len(list(chain.residues())):
+                    fixer.missingResidues[key] = []
+                else:
+                    if len(fixer.missingResidues[key]) > 10:
+                        fixer.missingResidues[key] = []
             logging.debug("Adding Missing Atoms %s" % pdb_structure.path.name)
             print(fixer.missingAtoms)
             fixer.addMissingAtoms()
         fixer.addMissingHydrogens()
         fixer.removeHeterogens(keepWater=False)
         logging.info("Writing file %s" % working_dir.joinpath(pdb_structure.path.name))
-       # np_positions = np.array([np.array([tmp.x, tmp.y, tmp.z]) for tmp in fixer.positions])
-       # md_top = md.Topology.from_openmm(fixer.topology)
-       # md_traj = md.Trajectory(np_positions, md_top)
-       # md_traj.save(working_dir.joinpath(pdb_structure.path.name))
-        PDBFile.writeFile(fixer.topology, fixer.positions, open(working_dir.joinpath(pdb_structure.path.name), "w"))
-        os.system(f"cp {pdb_structure.path.parent.joinpath(uniprot_id).with_suffix(ALLOWED_EXT.FASTA.value)}  "
+        pdb_file = open(working_dir.joinpath(pdb_structure.path.name), "w")
+        PDBFile.writeFile(fixer.topology, fixer.positions, pdb_file)
+        os.system(f"cp {pdb_structure.path.parent.joinpath(uniprot_id.id).with_suffix(ALLOWED_EXT.FASTA.value)} "
                   f"{working_dir}")
+        pdb_file.close()
+        del fixer

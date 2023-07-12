@@ -1,3 +1,4 @@
+import json
 import logging
 from multiprocessing import pool
 from abc import ABC, abstractmethod
@@ -5,6 +6,7 @@ from pathlib import Path
 from typing import Optional, Dict
 
 import urllib3.exceptions
+from fasta_reader import read_fasta
 
 from lib.const import ALLOWED_EXT, CONFIG_PATH, CONFIG_OPTIONS, SUPPORTED_STRUCTURE_TYPES
 from lib.func import load_json
@@ -15,9 +17,9 @@ class UniProtID:
     def __init__(self, uniprot_id: str, database_location: Path):
         self._id: str = self.verify(uniprot_id)
         self._base: Path = database_location.joinpath(uniprot_id)
-        self._path: Optional[Path] = None
         self._uniprot_structural_data: Optional[Dict] = None
         self._path = self._base.joinpath(self._id + ALLOWED_EXT.FASTA.value)
+        self._sequence = None
 
     @property
     def id(self) -> str:
@@ -25,11 +27,12 @@ class UniProtID:
 
     @property
     def fasta(self) -> str:
-        raise NotImplemented
-        #iterator = read_fasta(self._path)
-        #fasta_item = iterator.read_item()
-        #return fasta_item.sequence
-
+        #raise NotImplemented
+        if self._sequence is None:
+            iterator = read_fasta(self._path)
+            fasta_item = iterator.read_item()
+            self._sequence = fasta_item.sequence
+        return self._sequence
     @staticmethod
     def verify(id: str):
         return id
@@ -41,13 +44,19 @@ class UniProtID:
     @property
     def structural_data(self) -> Dict:
         if self._uniprot_structural_data is None:
-            return {}
+            try:
+                with open(self._base.joinpath(self._id+".json")) as f:
+                    self._uniprot_structural_data = json.load(f)
+            except:
+                #logging.warning("Trying depreciated way")
+                with open(self._base.joinpath(self._id)) as f:
+                    self._uniprot_structural_data = json.load(f)[0]
         return self._uniprot_structural_data
 
     def query_accession_data(self) -> None:
         uni_query = UniProtIDQuery(self._id, self._base)
         try:
-            uni_query.query(self._id)
+            uni_query.query(self._id+".json")
         except urllib3.exceptions.MaxRetryError:
             raise FileNotFoundError (f"Maximum retries to query {self.id}", self.id)
         except urllib3.exceptions.SSLError:

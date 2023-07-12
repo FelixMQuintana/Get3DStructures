@@ -87,7 +87,7 @@ class HTMLQuery:
             response.raise_for_status()
             sys.exit(1)
         if response.headers["Content-Type"] == "application/json":
-            self._response_history.append(response.json()[0])
+            self._response_history.append(response.json())
         else:
             self._response_history.append(response.content)
         lock = threading.Lock()
@@ -109,7 +109,8 @@ class UniProtIDQuery(HTMLQuery):
 
     @property
     def html_base(self) -> str:
-        return "https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=100&accession="
+        return "https://rest.uniprot.org/uniprotkb/"
+        #return "https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=100&accession="
 
     def parse_response(self) -> Dict:
         with open(self._meta_data_file_name, 'w') as out:

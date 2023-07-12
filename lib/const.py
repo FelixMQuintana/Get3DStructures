@@ -6,7 +6,7 @@ ACCESSIONS_LOOKUP_TABLE = "accession_ids.csv"
 APP_NAME = "StructCompare"
 APP_DIRECTORY = typer.get_app_dir(APP_NAME)
 CONFIG_PATH = APP_DIRECTORY + "/config.json"
-COLABFOLD_WORKING_DIRECTORY = "/home/felix/Software/colabfold_batch/colabfold-conda/bin/colabfold_batch"
+COLABFOLD_WORKING_DIRECTORY = "/home/felix/Data/colabfold_batch/colabfold-conda/bin/colabfold_batch"
 LOGFILE = "log.txt"
 
 
@@ -14,14 +14,27 @@ class AnalysisMode(Enum):
     PLDDT = "plddt"
     STATS = "stats"
 
+
 class CONFIG_OPTIONS(Enum):
     DATABASE_LOCATION = "database_location"
     THREAD_COUNT = "thread_count"
     STRUCTURE_TYPE = "structure_type"
 
+
 class StructureCharacteristicsMode(Enum):
     AUTOSITE = "Autosite"
+    MOTIFS = "motif"
     # LIGANDBINDING
+
+
+class MotifSearchMode(Enum):
+    CLUSTER = "cluster"
+    FEATURE_POINTS = "feature_points"
+
+
+class MotifRefinements(Enum):
+    ALL_ATOM = "all_atom"
+    RESIDUE = "residue"
 
 
 class SUPPORTED_MODES(Enum):
@@ -64,6 +77,36 @@ class FUNSOCS(Enum):
     DEGRADE_ECM = "DegradeECM"
     DEVELOPMENT_IN_HOST = "DevelopmentInHost"
     DISABLE_ORGAN = "DisableOrgan"
+
+
+class Metrics:
+    UNIPROTID_COUNT = "uniprotID_count"
+    CRYSTAL_STRUCTURES = "crystal_structures"
+    HOMOLOGY_STRUCTURES = "homology_structures"
+
+
+class Statistics(Enum):
+    """"""
+
+
+class CountStatistics(Statistics):
+    COUNT = "count"
+    MEAN = "count_mean"
+    ST_DEV = "count_stdev"
+    MAX = "count_max"
+    MIN = "count_min"
+    MODE = "count_mode"
+
+
+class HomologyStructureStatistics(Statistics):
+    PLDDT_MEAN = "plddt_mean"
+
+
+class SequenceLengthStatistics(Statistics):
+    MEAN = "sequence_length_mean"
+    ST_DEV = "sequence_length_stdev"
+    MAX = "sequence_length_max"
+    MIN = "sequence_length_min"
 
 
 ALPHA_FOLD_STRUCTURE_EXT = "-model_v%s"

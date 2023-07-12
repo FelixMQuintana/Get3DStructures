@@ -10,7 +10,6 @@ from pathlib import Path
 from Commands.Analyze import Analyze
 from Commands.Characteristics import Characteristics
 from Commands.Structure import Structure
-#from Commands.generate_graph import GenerateGraph
 from lib.const import ALLOWED_EXT, AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, CONFIG_OPTIONS, \
     SUPPORTED_STRUCTURE_TYPES
 from Commands.repair import RepairPDB
@@ -23,14 +22,6 @@ logging.basicConfig(
     level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
 )
 app = typer.Typer(pretty_exceptions_show_locals=False)
-
-
-#@app.command()
-#def graph(structure_file: Optional[Path] =
-#          typer.Option(None,
-#                       help="Specific structure file to find characteristics based on mode selected"), ):
-#    command = GenerateGraph(structure_file)
-#    command.run()
 
 
 @app.command()

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import threading
@@ -5,8 +6,8 @@ from pathlib import Path
 from typing import Optional, List
 
 import Bio.SeqIO
+from Bio import SeqIO
 import typer
-#from fasta_reader import read_fasta
 
 from Commands.command import Command, UniProtID
 from lib.const import COLABFOLD_WORKING_DIRECTORY, COLABFOLD_OPTIONS, \
@@ -17,36 +18,66 @@ import dask.dataframe as df
 from rich.progress import track
 
 
+acceptable_sites =["ACT_SITE", "BINDING", "MOTIF"]
+
 class StructureFile:
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, id):
         self._path: Path = path
-
+        self._sequence = ""
+        self._id = id
+        self._binding_site_residues = None
     @property
     def path(self) -> Path:
         return self._path
 
+    @property
+    def fasta(self) -> str:
+        if len(self._sequence) == 0:
+            pdb_parser = SeqIO.parse(self._path, "pdb-atom")
+            for record in pdb_parser:
+                self._sequence += record.seq
+        return self._sequence
+    @property
+    def binding_site_residues(self):
+        if self._binding_site_residues is None:
+
+            try:
+                raw_uniprot_data = json.load(open(self._path.parent.joinpath(self._id), "r"))[0]
+            except:
+                logging.warning(f"First path didn't work{self._path.parent.joinpath(self._id)}. Trying "
+                                f"{str(self._path.parent.joinpath(self._id)).replace('Repaired_structs','raw_structs')}")
+                raw_uniprot_data = json.load(open(str(self._path.parent.joinpath(self._id)).replace('Repaired_structs','raw_structs'), "r"))[0]
+            features:List = raw_uniprot_data["features"]
+            self._binding_site_residues = []
+            for feature in features:
+                if feature["type"] in acceptable_sites:
+           #         if feature["type"] == "MOTIF":
+           #             self._binding_site_residues = [range(int(feature["begin"]), int(feature["end"])+1)]
+           #         if feature["evidences"][0]["source"]["name"] == "PubMed":
+                    self._binding_site_residues.extend(range(int(feature["begin"]), int(feature["end"])+1))
+        return self._binding_site_residues
 
 class HomologyStructure(StructureFile):
     """
 
     """
 
-    def __init__(self, path: Path):
-        super().__init__(path)
+    def __init__(self, path: Path, id):
+        super().__init__(path, id)
         self._piddt: Optional[List[float]] = None
 
     @property
-    def piddt(self) -> List:
+    def piddt(self, ) -> List:
         if self._piddt is None:
-            read_alpha_fold_file_obj = open(self.path.with_suffix(ALLOWED_EXT.CIF.value), "r")
-            current_res = 0
+            read_alpha_fold_file_obj = open(self.path.with_suffix(ALLOWED_EXT.PDB.value), "r")
+         #   current_res = 0
             plddt = []
             for line in read_alpha_fold_file_obj:
-                if line.startswith("ATOM") and line.split()[2] == "C":
-                    if int(line.split()[8]) > current_res:
-                        plddt.append(float(line.split()[14]))
-                        current_res = int(line.split()[8])
+                if line.startswith("ATOM"):# and line.split()[2] == "C":
+           #         if int(line.split()[5]) > current_res or int(line.split()[5])==0:
+                    plddt.append(float(line.split()[-2]))
+           #             current_res = int(line.split()[5])
             self._piddt = plddt
         return self._piddt
 
@@ -59,7 +90,7 @@ class CrystalStructure(StructureFile):
 
 def generate_alpha_fold_structures(uniprotid: UniProtID):
     os.system(COLABFOLD_WORKING_DIRECTORY + COLABFOLD_OPTIONS.USE_GPU.value + COLABFOLD_OPTIONS.MSA_MODE.value %
-              COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value + COLABFOLD_OPTIONS.AMBER.value +
+              COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value +# COLABFOLD_OPTIONS.AMBER.value +
               COLABFOLD_OPTIONS.NUM_ENSEMBLE.value % "3" + COLABFOLD_OPTIONS.PAIR_MODE.value %
               COLABFOLDResponses.UNPAIRED_PAIRED.value + uniprotid.path.as_posix() + " " + uniprotid.path.parent.as_posix())
 
@@ -97,16 +128,18 @@ class Structure(Command):
 
     def run(self) -> None:
         threading.excepthook = self.exception_handler
-        alpha_fold_threads = self.look_up_alpha_fold_structures()
-        fasta_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_fasta, args=[]) for uniprot in
-                                                 self._uniprot_id_query_list]
-        accession_data_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_accession_data, args=[])
-                                                          for uniprot in self._uniprot_id_query_list]
-        [(fasta_thread.start(), accession_data_thread.start()) for fasta_thread, accession_data_thread in
-         zip(fasta_threads, accession_data_threads)]
-        [(fasta_thread.join(), accession_data_thread.join()) for fasta_thread, accession_data_thread in
-         zip(fasta_threads, accession_data_threads)]
-        [(threads[0].join(), threads[1].join()) for threads in track(alpha_fold_threads)]
+    #    alpha_fold_threads = self.look_up_alpha_fold_structures()
+    #    fasta_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_fasta, args=[]) for uniprot in
+    #                                             self._uniprot_id_query_list]
+    #    accession_data_threads: List[threading.Thread] = [threading.Thread(target=uniprot.query_accession_data, args=[])
+    #                                                      for uniprot in self._uniprot_id_query_list]
+    #    [thread.start() for thread in accession_data_threads]
+    #    [thread.join() for thread in accession_data_threads]
+    #    [(fasta_thread.start(), accession_data_thread.start()) for fasta_thread, accession_data_thread in
+    #     zip(fasta_threads, accession_data_threads)]
+    #    [(fasta_thread.join(), accession_data_thread.join()) for fasta_thread, accession_data_thread in
+    #     zip(fasta_threads, accession_data_threads)]
+    #    [(threads[0].join(), threads[1].join()) for threads in track(alpha_fold_threads)]
         [self.get_structures(uniprot) for uniprot in self._uniprot_id_query_list]
         [process.wait() for process in self.active_threads]
 
@@ -137,14 +170,20 @@ class Structure(Command):
     def get_structures(self, uniprotid: UniProtID):
         self.get_pdb_structures(uniprotid)
         pdbs = [file for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if
-                file.endswith("." + self.structure_type)]
-        #fasta_len = [len(Bio.SeqIO.read(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)), "fasta").seq) for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
+                file.endswith("." + self.structure_type) and (file.startswith("AF") or file.startswith("sp"))]
+
+        try:
+            fasta_len = [len(Bio.SeqIO.read(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)), "fasta").seq) for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
+        except:
+            return None
+
+
        # print(f"fasta {fasta_len}")
         #fatsa_len = [[len(item.sequence) for item in read_fasta(self.working_directory.joinpath(uniprotid.id).joinpath(str(file)))][0] for file in os.listdir(self.working_directory.joinpath(uniprotid.id)) if file.endswith(".fasta")][0]
-     #   if len(pdbs) == 0:
-     #       print(threading.active_count())
-     #       typer.secho(f"Generating AlphaFold Structures for UniProtID {uniprotid.id}", fg=typer.colors.BLUE)
-     #       self.active_threads.append(self.thread_pool.apply_async(generate_alpha_fold_structures, [uniprotid]))
+        if len(pdbs) == 0 and fasta_len < 1500:
+            print(threading.active_count())
+            typer.secho(f"Generating AlphaFold Structures for UniProtID {uniprotid.id}", fg=typer.colors.BLUE)
+            self.active_threads.append(self.thread_pool.apply_async(generate_alpha_fold_structures, [uniprotid]))
 
     def get_pdb_structures(self, uniprot_id: UniProtID) -> None:
         """
@@ -152,9 +191,12 @@ class Structure(Command):
         :param uniprot_id:
         :return:
         """
+     #   if Path("/mnt/ResearchLongTerm/raw_structs/invasion_hostcell_Viral/").joinpath(uniprot_id.path.name.removesuffix(".fasta")).exists() and  uniprot_id.structural_data.get(UNIPROT_RESPONSE.STRUCTURE.value) == None:
+     #       os.system(f"cp -r {Path('/mnt/ResearchLongTerm/raw_structs/invasion_hostcell_Viral/').joinpath(uniprot_id.path.name.removesuffix('.fasta'))} {uniprot_id.path.parent.parent}")
+     #       return None
         if uniprot_id.structural_data.get(UNIPROT_RESPONSE.STRUCTURE.value) == None:
             return None
-        print(uniprot_id.structural_data.get(UNIPROT_RESPONSE.STRUCTURE.value))
+
         threads = [
             threading.Thread(target=PDBQuery(self.working_directory.joinpath(uniprot_id.id)).query,
                              args=[pdb_code + "." + self.structure_type]) for
