@@ -88,10 +88,12 @@ class HTMLQuery:
             sys.exit(1)
         if response.headers["Content-Type"] == "application/json":
             self._response_history.append(response.json())
+            open(self._output_directory.joinpath(response.request.url.split(self.html_base)[1]).as_posix()+".json", 'wb').write(
+                response.content)
         else:
             self._response_history.append(response.content)
-        lock = threading.Lock()
-        with lock:
+       # lock = threading.Lock()
+       # with lock:
             open(self._output_directory.joinpath(response.request.url.split(self.html_base)[1]).as_posix(), 'wb').write(
                 response.content)
         return None
@@ -112,16 +114,16 @@ class UniProtIDQuery(HTMLQuery):
         return "https://rest.uniprot.org/uniprotkb/"
         #return "https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=100&accession="
 
-    def parse_response(self) -> Dict:
-        with open(self._meta_data_file_name, 'w') as out:
-            json.dump(self.response_history[0], out)
-        accession = self.response_history[0].get(UNIPROT_RESPONSE.ACCESSION.value)
-        data: List[Dict] = self.response_history[0].get(UNIPROT_RESPONSE.DB_REFERENCES.value)
-        if data is None:
-            raise UserWarning(f"No known model! {data}")
-        pdb_results: List[str] = [entry.get('id') for entry in data if entry.get('type') == "PDB"]
-        return {UNIPROT_RESPONSE.ACCESSION.value: accession,
-                UNIPROT_RESPONSE.STRUCTURE.value: pdb_results}
+   # def parse_response(self) -> Dict:
+   #     with open(self._meta_data_file_name, 'w') as out:
+   #         json.dump(self.response_history[0], out)
+   #     accession = self.response_history[0].get(UNIPROT_RESPONSE.ACCESSION.value)
+   #     data: List[Dict] = self.response_history[0].get(UNIPROT_RESPONSE.DB_REFERENCES.value)
+   #     if data is None:
+   #         raise UserWarning(f"No known model! {data}")
+   #     pdb_results: List[str] = [entry.get('id') for entry in data if entry.get('type') == "PDB"]
+   #     return {UNIPROT_RESPONSE.ACCESSION.value: accession,
+   #             UNIPROT_RESPONSE.STRUCTURE.value: pdb_results}
 
 
 class FastaQuery(HTMLQuery):

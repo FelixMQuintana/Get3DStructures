@@ -24,9 +24,9 @@ def make_piddt_plot(alpha_fold_structure: HomologyStructure):
     plt.close()
 
 
-class Analyze(PostProcessing):
+class Analyze:
 
-    def __init__(self, specific_file: Optional[Path], mode: AnalysisMode) -> None:
+    def __init__(self, mode: AnalysisMode) -> None:
         super().__init__(specific_file=specific_file)
         self._mode = self.get_structures_metrics
         #if mode.value == AnalysisMode.PLDDT:

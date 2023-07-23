@@ -23,8 +23,19 @@ class CONFIG_OPTIONS(Enum):
 
 class StructureCharacteristicsMode(Enum):
     AUTOSITE = "Autosite"
-    MOTIFS = "motif"
+    BUILD_MOTIFS = "build_motif"
+    FIND_BINDING_POCKETS = "find_binding_pocket"
+    CHECK_MOTIF_QUALITY = "check_motif_quality"
+    CALCULATE_RMSD = "calculate_rmsd"
     # LIGANDBINDING
+
+
+class StructureBuildMode(Enum):
+    ACCESSION_DATA = "accession_data"
+    FASTA_DATA = "fasta_data"
+    PDB_STRUCTURES = "pdb_structures"
+    ALPHAFOLD_STRUCTURES = "alphafold_structures"
+    COMPUTE_ALPHA_STRUCTURES = "compute_alphafold_structures"
 
 
 class MotifSearchMode(Enum):
@@ -44,9 +55,17 @@ class SUPPORTED_MODES(Enum):
     FIND_BINDING_SITES = "find-binding-sites"
 
 
-class SUPPORTED_STRUCTURE_TYPES(Enum):
+class SUPPORTED_STRUCTURE_FILE_TYPES(Enum):
     PDB = "pdb"
     CIF = "cif"
+
+
+class SupportedFileTypeRegex(Enum):
+    EXPERIMENTAL_STRUCTURE = "[!AF,!sp]*.pdb"
+    HOMOLOGY_STRUCTURE = "[AF,sp]*.pdb"
+    CSV_FILE = "*.csv"
+    FASTA_FILE = '*.fasta'
+    JSON_FILE = '*.json'
 
 
 class COLABFOLD_OPTIONS(Enum):
