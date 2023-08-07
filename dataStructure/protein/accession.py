@@ -6,10 +6,15 @@ from typing import Optional, Dict, List
 from fasta_reader import read_fasta
 
 from dataStructure.protein.structure import StructureFile
-from lib.const import ALLOWED_EXT
+from lib.const import AllowedExt
 from query import FastaQuery
 
 acceptable_sites = ["ACT_SITE", "BINDING", "Motif", "Binding site", "Active site"]
+
+
+def query_fasta(self) -> None:
+    logging.debug("Querying fasta for uniprotID: %s" % self.id)
+    FastaQuery(self._base).query(self._id + AllowedExt.FASTA.value)
 
 
 class UniProtIDFastaFile(StructureFile):
@@ -30,10 +35,6 @@ class UniProtIDFastaFile(StructureFile):
             self._sequence = fasta_item.sequence
         return self._sequence
 
-def query_fasta(self) -> None:
-    logging.debug("Querying fasta for uniprotID: %s" % self.id)
-    FastaQuery(self._base).query(self._id + ALLOWED_EXT.FASTA.value)
-
 
 class UniProtAcessionFile(StructureFile):
 
@@ -52,7 +53,7 @@ class UniProtAcessionFile(StructureFile):
                 raise FileNotFoundError(f"Couldn't open {self.path}")
         return self._uniprot_structural_data
 
-    #def query_accession_data(self) -> None:
+    # def query_accession_data(self) -> None:
     #    uni_query = UniProtIDQuery(self._id, self._base)
     #    try:
     #        uni_query.query(self._id + ".json")
@@ -66,13 +67,13 @@ class UniProtAcessionFile(StructureFile):
     def binding_site_residues(self):
         if self._binding_site_residues is None:
 
-       #     try:
-            raw_uniprot_data = json.load(open(self._path, "r"))#[0]
-      #      except:
-      #          logging.warning(f"First path didn't work{self._path}. Trying "
-      #                          f"{str(self._path).replace('Repaired_structs', 'raw_structs')}")
-      #          raw_uniprot_data = json.load(
-      #              open(str(self._path).replace('Repaired_structs', 'raw_structs'), "r"))[0]
+            #     try:
+            raw_uniprot_data = json.load(open(self._path, "r"))  # [0]
+            #      except:
+            #          logging.warning(f"First path didn't work{self._path}. Trying "
+            #                          f"{str(self._path).replace('Repaired_structs', 'raw_structs')}")
+            #          raw_uniprot_data = json.load(
+            #              open(str(self._path).replace('Repaired_structs', 'raw_structs'), "r"))[0]
             try:
                 features: List = raw_uniprot_data["features"]
             except KeyError:
@@ -84,5 +85,6 @@ class UniProtAcessionFile(StructureFile):
                         self._binding_site_residues.extend(range(int(feature["begin"]), int(feature["end"]) + 1))
                     except KeyError as ex:
                         logging.warning("Getting features failed with first method. Attempting second method.")
-                        self._binding_site_residues.extend(range(int(feature["location"]["start"]["value"]), int(feature["location"]["end"]["value"]) +1))
+                        self._binding_site_residues.extend(range(int(feature["location"]["start"]["value"]),
+                                                                 int(feature["location"]["end"]["value"]) + 1))
         return self._binding_site_residues

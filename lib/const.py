@@ -15,7 +15,7 @@ class AnalysisMode(Enum):
     STATS = "stats"
 
 
-class CONFIG_OPTIONS(Enum):
+class ConfigOptions(Enum):
     DATABASE_LOCATION = "database_location"
     THREAD_COUNT = "thread_count"
     STRUCTURE_TYPE = "structure_type"
@@ -27,6 +27,7 @@ class StructureCharacteristicsMode(Enum):
     FIND_BINDING_POCKETS = "find_binding_pocket"
     CHECK_MOTIF_QUALITY = "check_motif_quality"
     CALCULATE_RMSD = "calculate_rmsd"
+    TRIM_PDB = "trim_pdb"
     # LIGANDBINDING
 
 
@@ -48,14 +49,14 @@ class MotifRefinements(Enum):
     RESIDUE = "residue"
 
 
-class SUPPORTED_MODES(Enum):
+class SupportedModes(Enum):
     STRUCTURE = "structure"
     REPAIR_STRUCTURES = "repair-structure"
     ANALYZE_DATA = "analyze-dataset"
     FIND_BINDING_SITES = "find-binding-sites"
 
 
-class SUPPORTED_STRUCTURE_FILE_TYPES(Enum):
+class SupportedStructureFileTypes(Enum):
     PDB = "pdb"
     CIF = "cif"
 
@@ -68,7 +69,7 @@ class SupportedFileTypeRegex(Enum):
     JSON_FILE = '*.json'
 
 
-class COLABFOLD_OPTIONS(Enum):
+class ColabFoldOptions(Enum):
     MSA_MODE = " --msa-mode %s "
     USE_GPU = " --use-gpu-relax "
     NUM_ENSEMBLE = " --num-ensemble %s"
@@ -81,14 +82,14 @@ class COLABFOLDResponses(Enum):
     MMSEQS2_UNIREF_ENV = "mmseqs2_uniref_env"
 
 
-class ALLOWED_EXT(Enum):
+class AllowedExt(Enum):
     CIF = ".cif"
     PDB = ".pdb"
     JSON = ".json"
     FASTA = ".fasta"
 
 
-class FUNSOCS(Enum):
+class FunSoCs(Enum):
     ANTIBIOTIC_RESISTANCE = "AntibioticResistance"
     BACTERIAL_COUNTER_SIGNALING = "BacterialCounterSignaling"
     COUNTER_IMMUNOGLOBULIN = "CounterImmunoglobulin"
@@ -129,4 +130,4 @@ class SequenceLengthStatistics(Statistics):
 
 
 ALPHA_FOLD_STRUCTURE_EXT = "-model_v%s"
-ALPHA_FOLD_PAE_EXT = "-predicted_aligned_error_v%s" + ALLOWED_EXT.JSON.value
+ALPHA_FOLD_PAE_EXT = "-predicted_aligned_error_v%s" + AllowedExt.JSON.value

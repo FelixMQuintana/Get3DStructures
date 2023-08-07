@@ -18,9 +18,9 @@ from pathlib import Path
 from dataStructure.collections import Collection, HomologyStructureFetcher, ExperimentalStructureFetcher, \
     UniProtAcessionFetcher
 from dataStructure.protein.protein import ProteinStructures
-from dataStructure.protein.structure import StructureFile
-from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements
-import numpy as np
+from dataStructure.protein.structure import StructureFile, HomologyStructure
+from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements, AllowedExt
+
 
 class Characteristics(Command, ABC):
 
@@ -101,16 +101,16 @@ class BuildMotifStructures(Characteristics):
 
         # residues = [residue.get_atoms() for residue in pdb.get_residues() if residue.id[1] in structure_file.binding_site_residues]
         io = PDBIO()
-     #   try:
-     #       pred_binding_sites = np.loadtxt(
-     #           self.binding_site_database.joinpath(structure_file.id).joinpath("autosite_pred.txt"))
-     #   except:
-     #       logging.warning("Cant do this")
-     #       return None
-      #  print(pred_binding_sites)
+        #   try:
+        #       pred_binding_sites = np.loadtxt(
+        #           self.binding_site_database.joinpath(structure_file.id).joinpath("autosite_pred.txt"))
+        #   except:
+        #       logging.warning("Cant do this")
+        #       return None
+        #  print(pred_binding_sites)
         residue_ids_to_remove = [id.id[1] for id in pdb.get_residues() if
-                                 int(id.id[1]) not in protein_structures.uniprotID.binding_site_residues ]
-                                 #and id.id[1] not in pred_binding_sites]
+                                 int(id.id[1]) not in protein_structures.uniprotID.binding_site_residues]
+        # and id.id[1] not in pred_binding_sites]
         try:
             for chain in pdb[0]:
                 [chain.detach_child((' ', id, ' ')) for id in residue_ids_to_remove]
@@ -120,8 +120,68 @@ class BuildMotifStructures(Characteristics):
         io.set_structure(pdb)
         if len([atom for atom in pdb.get_atoms()]) == 0:
             return None
-        io.save(str(self.binding_site_database.joinpath(structure_file.id).joinpath(structure_file.path.name.removesuffix(".pdb") + "_motif.pdb")),
-                preserve_atom_numbering=True)
+        io.save(str(self.binding_site_database.joinpath(structure_file.id).joinpath(
+            structure_file.path.name.removesuffix(".pdb") + "_motif.pdb")),
+            preserve_atom_numbering=True)
+
+
+class FixPDBFiles(Characteristics):
+
+    def __init__(self, binding_site_database: Path):
+
+        super().__init__(binding_site_database)
+        self.collection = Collection(self.working_directory, HomologyStructureFetcher(), UniProtAcessionFetcher())
+
+    def command(self, structure_file: HomologyStructure, protein_structures: ProteinStructures) -> None:
+        pdb_parser = PDB.PDBParser()
+        working_dir: Path = self.binding_site_database.joinpath(structure_file.id)
+
+        pdb = pdb_parser.get_structure(structure_file.path.name, structure_file.path)
+        io = PDBIO()
+        residue_ids = []
+        for index, score in enumerate(structure_file.piddt):
+            if score > 70:
+                break
+            residue_ids.append(index)
+        for index, score in enumerate(reversed(structure_file.piddt)):
+            if score > 70:
+                break
+            residue_ids.append(len(structure_file.piddt) - index)
+
+        residue_ids_to_remove = [id.id[1] for id in pdb.get_residues() if
+                                 int(id.id[1]) in residue_ids]
+        try:
+            for chain in pdb[0]:
+                [chain.detach_child((' ', id, ' ')) for id in residue_ids_to_remove]
+        except KeyError as ex:
+            for chain in pdb:
+                [chain.detach_child((' ', id, ' ')) for id in residue_ids_to_remove]
+        io.set_structure(pdb)
+        if len([atom for atom in pdb.get_atoms()]) == 0:
+            return None
+        io.save(str(self.binding_site_database.joinpath(structure_file.id).joinpath(
+            structure_file.path.name.removesuffix(".pdb") + "_trimmed.pdb")),
+            preserve_atom_numbering=True)
+        os.system(f"cp {structure_file.path.parent.joinpath(structure_file.id).with_suffix(AllowedExt.FASTA.value)} "
+                  f"{working_dir}")
+        os.system(f"cp {structure_file.path.parent.joinpath(structure_file.id).with_suffix(AllowedExt.JSON.value)} "
+                  f"{working_dir}")
+
+
+class CreateCombinatorics(Characteristics):
+    def __init__(self, binding_site_database: Path):
+        super().__init__(binding_site_database)
+        self.collection = Collection(self.working_directory, HomologyStructureFetcher(), UniProtAcessionFetcher())
+
+    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
+        pdb_parser = PDB.PDBParser()
+        working_dir: Path = self.binding_site_database.joinpath(structure_file.id)
+
+        pdb = pdb_parser.get_structure(structure_file.path.name, structure_file.path)
+        io = PDBIO()
+
+      #  for chain in pdb[0]:
+      #      [chain.detach_child((' ', id, ' ')) for id in residue_ids_to_remove]
 
 
 class FindBindingSite(Characteristics):
@@ -213,23 +273,25 @@ class CalculateLeastRootMeanSquareDistance(Characteristics):
 
                 pdb = pdb_parser.get_structure(structure.path.name, structure.path)
                 pdb_coords = np.array([atom.get_coord() for atom in pdb.get_atoms()])
-                self.per_motif_rmsd_vectors.append(np.sqrt((pdb_coords_reference - pdb_coords)**2/
+                self.per_motif_rmsd_vectors.append(np.sqrt((pdb_coords_reference - pdb_coords) ** 2 /
                                                            pdb_coords_reference.shape[0]))
+
 
 supported_commands = {
     StructureCharacteristicsMode.AUTOSITE: FindPockets,
     StructureCharacteristicsMode.BUILD_MOTIFS: BuildMotifStructures,
     StructureCharacteristicsMode.FIND_BINDING_POCKETS: FindBindingSite,
     StructureCharacteristicsMode.CHECK_MOTIF_QUALITY: CheckBindingSiteQuality,
-    StructureCharacteristicsMode.CALCULATE_RMSD: CalculateLeastRootMeanSquareDistance
+    StructureCharacteristicsMode.CALCULATE_RMSD: CalculateLeastRootMeanSquareDistance,
+    StructureCharacteristicsMode.TRIM_PDB: FixPDBFiles
 }
 
 
 class CharacteristicsFactory(FactoryBuilder):
 
     @staticmethod
-    def build(mode: StructureCharacteristicsMode, binding_site_database: Path):
-        return supported_commands[mode](binding_site_database)
+    def build(mode: StructureCharacteristicsMode, *args, **kwargs):
+        return supported_commands[mode](*args, **kwargs)
 
     #   threads: List = [
     #        [self.thread_pool.apply_async(self.mode, [structures, structure_result.id])

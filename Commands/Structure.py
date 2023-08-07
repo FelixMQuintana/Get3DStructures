@@ -11,17 +11,17 @@ from Commands.command import Command, FactoryBuilder
 from dataStructure.collections import Collection, HomologyStructureFetcher, ExperimentalStructureFetcher, \
     UniProtAcessionFetcher, UniProtFastaFetcher
 from dataStructure.protein.protein import ProteinStructures
-from lib.const import COLABFOLD_WORKING_DIRECTORY, COLABFOLD_OPTIONS, \
+from lib.const import COLABFOLD_WORKING_DIRECTORY, ColabFoldOptions, \
     ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT, APP_DIRECTORY, \
-    ALLOWED_EXT, StructureBuildMode
+    AllowedExt, StructureBuildMode
 from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery, UniProtIDQuery, FastaQuery
 import dask.dataframe as df
 
 
 def generate_alpha_fold_structures(fasta_path: Path):
-    os.system(COLABFOLD_WORKING_DIRECTORY + COLABFOLD_OPTIONS.USE_GPU.value + COLABFOLD_OPTIONS.MSA_MODE.value %
+    os.system(COLABFOLD_WORKING_DIRECTORY + ColabFoldOptions.USE_GPU.value + ColabFoldOptions.MSA_MODE.value %
               COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value +  # COLABFOLD_OPTIONS.AMBER.value +
-              COLABFOLD_OPTIONS.NUM_ENSEMBLE.value % "3" + COLABFOLD_OPTIONS.PAIR_MODE.value %
+              ColabFoldOptions.NUM_ENSEMBLE.value % "3" + ColabFoldOptions.PAIR_MODE.value %
               COLABFOLDResponses.UNPAIRED_PAIRED.value + fasta_path.as_posix() + " " + fasta_path.parent.as_posix())
 
 
@@ -56,7 +56,7 @@ class GetStructureData(Command, abc.ABC):
 class GetAccessionData(GetStructureData):
 
     def command(self) -> None:
-        threads = [threading.Thread(target=UniProtIDQuery(accession_id + ALLOWED_EXT.JSON.value,
+        threads = [threading.Thread(target=UniProtIDQuery(accession_id + AllowedExt.JSON.value,
                                                           self.working_directory.joinpath(accession_id)).query,
                                     args=[accession_id]) for accession_id in self._uniprot_list]
         [thread.start() for thread in threads]

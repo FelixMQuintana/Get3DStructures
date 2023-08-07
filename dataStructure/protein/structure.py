@@ -1,14 +1,13 @@
 """
 
 """
-import json
 import logging
 from pathlib import Path
 from typing import List, Optional
 
 from Bio import SeqIO
 
-from lib.const import ALLOWED_EXT
+from lib.const import AllowedExt
 
 
 class SupportedFileType:
@@ -22,7 +21,6 @@ class SupportedFileType:
     @property
     def path(self) -> Path:
         return self._path
-
 
 
 class GOLabelsFile(SupportedFileType):
@@ -64,14 +62,20 @@ class HomologyStructure(StructureFile):
     @property
     def piddt(self, ) -> List:
         if self._piddt is None:
-            read_alpha_fold_file_obj = open(self.path.with_suffix(ALLOWED_EXT.PDB.value), "r")
-            #   current_res = 0
+            read_alpha_fold_file_obj = open(self.path.with_suffix(AllowedExt.PDB.value), "r")
             plddt = []
+            current_res_num = 0
             for line in read_alpha_fold_file_obj:
-                if line.startswith("ATOM"):  # and line.split()[2] == "C":
-                    #         if int(line.split()[5]) > current_res or int(line.split()[5])==0:
-                    plddt.append(float(line.split()[-2]))
-            #             current_res = int(line.split()[5])
+                if line.startswith("ATOM"):
+                    if current_res_num < 1000 and line.split()[5].isnumeric():
+                        if int(line.split()[5]) > current_res_num:
+                            plddt.append(float(line.split()[-2]))
+                            current_res_num = int(line.split()[5])
+                    else:
+                        #     print(line)
+                        if int(line.split()[4][1:]) > current_res_num:
+                            plddt.append(float(line.split()[-2]))
+                            current_res_num = int(line.split()[4][1:])
             self._piddt = plddt
         return self._piddt
 

@@ -11,8 +11,8 @@ from pathlib import Path
 from Commands.Characteristics import CharacteristicsFactory
 from Commands.Structure import StructureFactory
 from Commands.repair import RepairStructures
-from lib.const import ALLOWED_EXT, AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, CONFIG_OPTIONS, \
-    SUPPORTED_STRUCTURE_FILE_TYPES, StructureBuildMode
+from lib.const import AllowedExt, AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, ConfigOptions, \
+    SupportedStructureFileTypes, StructureBuildMode
 # from Commands.repair import RepairPDB
 import typer
 import logging
@@ -82,17 +82,17 @@ def analyze(mode: AnalysisMode = typer.Argument(..., help="Mode for analysis.", 
 
 @app.callback()
 def main(database: Path = typer.Argument(..., help="Path of database of interest for different modes."),
-         number_of_threads: int = typer.Option(os.cpu_count(),
-                                               prompt="Specify the number of threads for this process?",
+         number_of_threads: int = typer.Option(default=os.cpu_count(),
+                                             #  prompt="Specify the number of threads for this process?",
                                                help="Option specifying number of threads to use for this process. "
                                                     "Default is number of logical cores."),
-         mode: SUPPORTED_STRUCTURE_FILE_TYPES = typer.Argument(SUPPORTED_STRUCTURE_FILE_TYPES.CIF,
-                                                               help="Structure type to perform analysis on.")):
+         mode: SupportedStructureFileTypes = typer.Argument(SupportedStructureFileTypes.CIF,
+                                                            help="Structure type to perform analysis on.")):
     database = os.path.abspath(Path(database))
     config = {
-        CONFIG_OPTIONS.DATABASE_LOCATION.value: database,
-        CONFIG_OPTIONS.THREAD_COUNT.value: number_of_threads,
-        CONFIG_OPTIONS.STRUCTURE_TYPE.value: mode.value
+        ConfigOptions.DATABASE_LOCATION.value: database,
+        ConfigOptions.THREAD_COUNT.value: number_of_threads,
+        ConfigOptions.STRUCTURE_TYPE.value: mode.value
     }
     with open(APP_DIRECTORY + "/config.json", "w") as json_config:
         json.dump(config, json_config)
