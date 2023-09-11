@@ -91,7 +91,7 @@ class HomologyStructureFetcher(DataFetcher):
         homology_files = [self.file_type(file) for file in file_path.rglob(self.file_type_regex.value)]
         return_list = []
         for file in homology_files:
-            print(file.path)
+         #   print(file.path)
             if mean(file.piddt) == 0:
                 file = self.copy_plddt(file)
             if mean(file.piddt) < self._quality_cut_off:

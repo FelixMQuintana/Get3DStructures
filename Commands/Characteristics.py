@@ -168,6 +168,32 @@ class FixPDBFiles(Characteristics):
                   f"{working_dir}")
 
 
+class GetLineage(Characteristics):
+
+    def __init__(self, binding_site_database: Path):
+        super().__init__(binding_site_database)
+        self.collection = Collection(self.working_directory, UniProtAcessionFetcher(), ExperimentalStructureFetcher())
+
+    def run(self) -> None:
+        structs = [protein_structures for protein_structures in self.collection.protein_structure_results.values()]
+        #print(structs)
+        with open("/mnt/ResearchLongTerm/FunSoCTrainingData/antibiotic_resistance.txt", "a") as e:
+            for struct in structs:
+                e.write(struct.id)
+                print(struct.id)
+                [e.write(" " + item) for item in struct.uniprotID.structural_data["organism"]["lineage"]]
+                e.write("\n")
+
+    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
+        pass
+
+
+# def command(self, protein_structure: ProteinStructures) -> None:
+#      with open("/mnt/ResearchLongTerm/FunSoCTrainingData/lineages.txt", "a") as e:
+#        e.write(protein_structure.id)
+#        [e.write(" " + item) for item in protein_structure.uniprotID.structural_data["organism"]["lineage"]]
+#        e.write("\n")
+
 class CreateCombinatorics(Characteristics):
     def __init__(self, binding_site_database: Path):
         super().__init__(binding_site_database)
@@ -180,8 +206,8 @@ class CreateCombinatorics(Characteristics):
         pdb = pdb_parser.get_structure(structure_file.path.name, structure_file.path)
         io = PDBIO()
 
-      #  for chain in pdb[0]:
-      #      [chain.detach_child((' ', id, ' ')) for id in residue_ids_to_remove]
+    #  for chain in pdb[0]:
+    #      [chain.detach_child((' ', id, ' ')) for id in residue_ids_to_remove]
 
 
 class FindBindingSite(Characteristics):
@@ -283,7 +309,8 @@ supported_commands = {
     StructureCharacteristicsMode.FIND_BINDING_POCKETS: FindBindingSite,
     StructureCharacteristicsMode.CHECK_MOTIF_QUALITY: CheckBindingSiteQuality,
     StructureCharacteristicsMode.CALCULATE_RMSD: CalculateLeastRootMeanSquareDistance,
-    StructureCharacteristicsMode.TRIM_PDB: FixPDBFiles
+    StructureCharacteristicsMode.TRIM_PDB: FixPDBFiles,
+    StructureCharacteristicsMode.GET_LINEAGE: GetLineage
 }
 
 

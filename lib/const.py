@@ -28,6 +28,7 @@ class StructureCharacteristicsMode(Enum):
     CHECK_MOTIF_QUALITY = "check_motif_quality"
     CALCULATE_RMSD = "calculate_rmsd"
     TRIM_PDB = "trim_pdb"
+    GET_LINEAGE = "get_lineage"
     # LIGANDBINDING
 
 

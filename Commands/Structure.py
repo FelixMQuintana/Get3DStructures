@@ -20,7 +20,7 @@ import dask.dataframe as df
 
 def generate_alpha_fold_structures(fasta_path: Path):
     os.system(COLABFOLD_WORKING_DIRECTORY + ColabFoldOptions.USE_GPU.value + ColabFoldOptions.MSA_MODE.value %
-              COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value +  # COLABFOLD_OPTIONS.AMBER.value +
+              COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value + # ColabFoldOptions.AMBER.value +
               ColabFoldOptions.NUM_ENSEMBLE.value % "3" + ColabFoldOptions.PAIR_MODE.value %
               COLABFOLDResponses.UNPAIRED_PAIRED.value + fasta_path.as_posix() + " " + fasta_path.parent.as_posix())
 
@@ -67,7 +67,7 @@ class GetFastaData(GetStructureData):
 
     def command(self) -> None:
         threads = [threading.Thread(target=FastaQuery(self.working_directory.joinpath(accession_id)).query,
-                                    args=[accession_id]) for accession_id in self._uniprot_list]
+                                    args=[accession_id+AllowedExt.FASTA.value]) for accession_id in self._uniprot_list]
         [thread.start() for thread in threads]
         [thread.join() for thread in threads]
 
@@ -110,7 +110,7 @@ class ComputeAlphaFoldStructures(GetStructureData):
 
     def command(self) -> None:
         [self.compute_structures(protein_structures) for protein_structures in
-         self.collection.protein_structure_results]
+         self.collection.protein_structure_results.values()]
 
     @staticmethod
     def compute_structures(protein_structures: ProteinStructures):

@@ -18,8 +18,8 @@ class RepairStructures(Command):
     def __init__(self, repaired_dataset: Path):
         super().__init__()
         self.repaired_dataset: Path = repaired_dataset
-        self.collection = Collection(self.working_directory, HomologyStructureFetcher(75),
-                                     UniProtAcessionFetcher())
+        self.collection = Collection(self.working_directory, HomologyStructureFetcher(),
+                                     UniProtAcessionFetcher(), ExperimentalStructureFetcher())
         if not self.repaired_dataset.exists():
             logging.info("Database doesn't appear to exist. Building it now!")
             logging.info("Building directory: %s" % self.repaired_dataset)
