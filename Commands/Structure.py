@@ -105,12 +105,12 @@ class ComputeAlphaFoldStructures(GetStructureData):
 
     def __init__(self, uniprot_list: Path):
         super().__init__(uniprot_list)
-        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher(), HomologyStructureFetcher(),
+        self.collection = Collection(self.working_directory, HomologyStructureFetcher(),
                                      UniProtFastaFetcher())
 
     def command(self) -> None:
         [self.compute_structures(protein_structures) for protein_structures in
-         self.collection.protein_structure_results.values()]
+         self.collection.protein_structure_results.values() if not self.working_directory.joinpath(protein_structures.id.split('.')[0]).joinpath("log.txt").exists()]
 
     @staticmethod
     def compute_structures(protein_structures: ProteinStructures):
@@ -136,7 +136,6 @@ class FindExperimentalStructures(GetStructureData):
         ----------
         protein_structures
         """
-
         if protein_structures.uniprotID.structural_data.get(UNIPROT_RESPONSE.STRUCTURE.value) is None:
             return None
 
