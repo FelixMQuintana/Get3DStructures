@@ -29,6 +29,7 @@ class StructureCharacteristicsMode(Enum):
     CALCULATE_RMSD = "calculate_rmsd"
     TRIM_PDB = "trim_pdb"
     GET_LINEAGE = "get_lineage"
+    CREATE_COMBINATORICS = "create_combinatorics"
     # LIGANDBINDING
 
 
@@ -38,6 +39,7 @@ class StructureBuildMode(Enum):
     PDB_STRUCTURES = "pdb_structures"
     ALPHAFOLD_STRUCTURES = "alphafold_structures"
     COMPUTE_ALPHA_STRUCTURES = "compute_alphafold_structures"
+    HomologyModel = "homology_model"
 
 
 class MotifSearchMode(Enum):

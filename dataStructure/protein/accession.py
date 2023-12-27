@@ -21,7 +21,7 @@ class UniProtIDFastaFile(StructureFile):
     def __init__(self, path: Path):
         super().__init__(path)
         self._uniprot_structural_data: Optional[Dict] = None
-        self._sequence = None
+        self._sequence: Optional[str] = None
 
     @property
     def id(self) -> str:

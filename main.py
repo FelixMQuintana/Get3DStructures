@@ -8,10 +8,11 @@ from typing import Optional
 from pathlib import Path
 
 # from Commands.Analyze import Analyze
-from Commands.Characteristics import CharacteristicsFactory
-from Commands.Structure import StructureFactory
+from Commands.Characteristics import CharacteristicsFactory, ClusterGOTerms, FindCustomBindingSite
+from Commands.Structure import StructureFactory, HomologyModel
 from Commands.repair import RepairStructures
-from lib.const import AllowedExt, AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, ConfigOptions, \
+from Commands.fasta_parser import FastaData, ParseMapping, MappPDBToGenBankHits
+from lib.const import AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, ConfigOptions, \
     SupportedStructureFileTypes, StructureBuildMode
 # from Commands.repair import RepairPDB
 import typer
@@ -45,19 +46,34 @@ def find_characteristics(mode: StructureCharacteristicsMode =
 
 
 @app.command()
+def cluster_go_terms( uniprot_id_list: Path = typer.Option(...,)):
+    command = ClusterGOTerms(uniprot_id_list)
+    command.run()
+
+@app.command()
+def tm_score():
+    command = FindCustomBindingSite()
+    command.run()
+
+@app.command()
 def get_structures(mode: StructureBuildMode =
                    typer.Argument(..., help="Mode for getting structures")
                    , uniprot_id_list: Path = typer.Option(...,
-                                                          help="Path to UniProtID list to find structures for.")):
+                                                          help="Path to UniProtID list to find structures for."),
+                   sequence_db: Optional[Path] = None):
     """
     This command is to populate structures based on provided uniprotID(s). Structures are pulled from the AF2 database,
     PDB databank. If no structure is available, ColabFold will run locally to generate the structure.
     """
 
-    command = StructureFactory().build(mode, uniprot_id_list)
+    command = StructureFactory().build(mode, uniprot_id_list, sequence_db)
     command.run()
 
-
+#@app.command()
+#def homology_model(uniprot_id_list: Path = typer.Option(...,
+#                                                          help="Path to UniProtID list to find structures for."),
+#                   target_sequence: Optional[Path] = typer.Option(None, help="For homology modeling")):
+#    HomologyModel(uniprot_id_list, target_sequence).run()
 @app.command()
 def repair(new_dataset_location: Path = typer.Argument(..., help="Where you'd like to save the new dataset?")):
     """This command is to repair structures from a specified database or structure file. The repaired database is
@@ -79,6 +95,31 @@ def analyze(mode: AnalysisMode = typer.Argument(..., help="Mode for analysis.", 
 # command = Analyze(mode)
 # command.run()
 
+
+@app.command()
+def read_sequence_data(file_name: str = typer.Argument(..., help="Name of fasta file of interest."),
+                       gene_name: str = typer.Argument(...,help="Gene name to search for in GP file under region name"),
+                       lower_bound: int = typer.Argument(..., help="lower bound for AA sequence size )temporary "
+                                                                   "implementation needs tp be more robust"),
+                       upper_bound: int = typer.Argument(...,
+                                                         help="Upper bound for AA sequence size (temporary "
+                                                              "implementation"),
+                       out_file_path: str = typer.Argument(..., help="Output fasta file path and name for output")):
+    FastaData(file_name, gene_name, lower_bound, upper_bound, out_file_path).run()
+
+
+@app.command()
+def parse_mapping(file_name: str = typer.Argument(..., help="Name of fasta file of interest."),
+                  out_file_path: str = typer.Argument(..., help="Output fasta file path and name for output")):
+    ParseMapping(file_name, out_file_path).run()
+
+
+@app.command()
+def map_represntatives_pdb(mapping_json_file: str = typer.Argument(..., help="Name of fasta file of interest."),
+                           cluster_representatives_tsv_file: str
+                           = typer.Argument(..., help="Output fasta file path and name for output")):
+
+    MappPDBToGenBankHits(mapping_json_file, cluster_representatives_tsv_file).run()
 
 @app.callback()
 def main(database: Path = typer.Argument(..., help="Path of database of interest for different modes."),

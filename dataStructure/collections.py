@@ -178,5 +178,5 @@ class Collection:
             self._protein_structures[key] = ProteinStructures(value)
 
     @property
-    def protein_structure_results(self):  # -> Dict[ProteinStructures]:
+    def protein_structure_results(self):# -> Dict[ProteinStructures]:
         return self._protein_structures

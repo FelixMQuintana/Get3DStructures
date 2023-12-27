@@ -1,26 +1,32 @@
 import abc
 import logging
 import os
+import re
 import subprocess
 import threading
 from abc import ABC
 from typing import List
-
+import itertools
 from Bio.PDB import PDBIO, Selection
 from matplotlib import pyplot as plt
 from scipy.spatial import distance_matrix
 import numpy as np
 import pandas
-from Bio import PDB
+from Bio import PDB, motifs, Seq
 from Commands.command import Command, FactoryBuilder
 from pathlib import Path
-
+import tqdm
+from Bio.Blast import NCBIWWW
 from dataStructure.collections import Collection, HomologyStructureFetcher, ExperimentalStructureFetcher, \
-    UniProtAcessionFetcher
+    UniProtAcessionFetcher, UniProtFastaFetcher
 from dataStructure.protein.protein import ProteinStructures
 from dataStructure.protein.structure import StructureFile, HomologyStructure
 from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements, AllowedExt
+from tmtools import tm_align
+from tmtools.io import get_structure, get_residue_data
 
+
+# import transformers
 
 class Characteristics(Command, ABC):
 
@@ -32,8 +38,7 @@ class Characteristics(Command, ABC):
             logging.info("Building directory: %s" % binding_site_database)
             os.mkdir(binding_site_database)
         self.binding_site_database: Path = binding_site_database
-        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher(),
-                                     HomologyStructureFetcher(), )
+        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
 
     @abc.abstractmethod
     def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
@@ -176,13 +181,19 @@ class GetLineage(Characteristics):
 
     def run(self) -> None:
         structs = [protein_structures for protein_structures in self.collection.protein_structure_results.values()]
-        #print(structs)
-        with open("/mnt/ResearchLongTerm/FunSoCTrainingData/antibiotic_resistance.txt", "a") as e:
+        # print(structs)
+        out = open("/media/felix/Research/protein_list2.txt", "w")
+        with open("/media/felix/Research/protein_list.txt", "r") as e:
             for struct in structs:
-                e.write(struct.id)
+                #   e.write(struct.id)
                 print(struct.id)
-                [e.write(" " + item) for item in struct.uniprotID.structural_data["organism"]["lineage"]]
-                e.write("\n")
+                try:
+                    struct.uniprotID.structural_data["organism"]["lineage"]
+                except Exception:
+                    continue
+                if struct.uniprotID.structural_data["organism"]["lineage"][-1] == "Escherichia":
+                    out.write(struct.id)
+                    out.write("\n")
 
     def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
         pass
@@ -194,19 +205,123 @@ class GetLineage(Characteristics):
 #        [e.write(" " + item) for item in protein_structure.uniprotID.structural_data["organism"]["lineage"]]
 #        e.write("\n")
 
+class ClusterGOTerms(Command):
+
+    def __init__(self, uniprot_list: Path):
+        super().__init__()
+        self.collection = Collection(self.working_directory, UniProtAcessionFetcher())
+        self.protein_list: Path = uniprot_list
+
+    def run(self) -> None:
+        protein_dict = {}
+        for protein_structure in self.collection.protein_structure_results.values():
+            for term in protein_structure.uniprotID.structural_data['uniProtKBCrossReferences']:
+                if term['database'] == "GO":
+                    try:
+                        protein_dict[term['id']].append(protein_structure.uniprotID.id)
+                    except KeyError as ex:
+                        protein_dict[term['id']] = [protein_structure.uniprotID.id]
+
+        with open(self.protein_list, "w") as output_file:
+            output_file.write(str(protein_dict))
+
+
+class TMScoreDatabase(Command):
+
+    def __init__(self):
+        super().__init__()
+        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
+
+    def run(self) -> None:
+        for protein_structures in self.collection.protein_structure_results.values():
+            for protein_structures_inner_loop in self.collection.protein_structure_results.values():
+                get_tm(protein_structures.crystal_structures[0].path,
+                       protein_structures_inner_loop.crystal_structures[0].path)
+
+
+class FindCustomBindingSite(Command):
+
+    def __init__(self):
+        super().__init__()
+        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher(), UniProtFastaFetcher())
+
+    def run(self) -> None:
+        pdb_parser = PDB.PDBParser()
+        io = PDBIO()
+        for protein_structures in self.collection.protein_structure_results.values():
+            #  motifs_of_interest = [Seq.Seq("GXXGXGKST")]#, Seq.Seq("XXXXD")]
+
+            try:
+                print(protein_structures.all_structures[0].path)
+                stability_motif = re.search(r"Y[A-Za-z]{2}D", str(protein_structures.crystal_structures[0].fasta))
+                binding_motif = re.search(r"G[A-Za-z]{2}G[A-Za-z]GKST",
+                                          str(protein_structures.crystal_structures[0].fasta))
+                histine_pos = re.finditer(r"H", str(protein_structures.crystal_structures[0].fasta))
+                #   if 0 >len(stability_motif) < 2:
+                stability_motif = list(range(stability_motif.start() + 1, stability_motif.end() + 1))
+                # elif len(stability_motif) > 0:
+                #        stability_motif = list(range(stability_motif.start(), stability_motif.end()))
+
+                binding_motif = list(range(binding_motif.start() + 1, binding_motif.end() + 1))
+                match_motif = None
+                for match in histine_pos:
+                    if match.end() < 185:
+                        match_motif = match
+
+                histine_pos = list(range(match_motif.start() + 1, match_motif.end() + 1))
+            except AttributeError as ex:
+                print(f"Skipping because of {ex}")
+                continue
+            except IndexError as ex:
+                print(f"Indexing error because of {ex}")
+                continue
+            stability_motif.extend(binding_motif)
+            stability_motif.extend(histine_pos)
+            working_dir: Path = self.working_directory.joinpath(protein_structures.all_structures[0].id)
+            pdb = pdb_parser.get_structure(protein_structures.all_structures[0].path.name,
+                                           protein_structures.all_structures[0].path)
+            # pdb_cluster_rep = pdb_parser.get_structure(id ,self.binding_site_database.joinpath(id).joinpath(
+            #                                              structure_file.path.name.split(".")[0]).joinpath(structure_file.path.name.split(".")[0] + "_cl_001.pdb",
+            #                                          ))
+            pdb_ids = [residue.id[1] for residue in pdb.get_residues()]
+            for chain in pdb[0]:
+                [chain.detach_child((' ', id, ' ')) for id in pdb_ids if id not in stability_motif]
+            # pdb_coords = np.array([residue.center_of_mass() for residue in pdb.get_residues()])
+            io.set_structure(pdb)
+            io.save(str(self.working_directory.joinpath(
+                protein_structures.crystal_structures[0].path.name + "_pocket.pdb")))
+        # d_matrix = distance_matrix(pdb_coords, cluster_coords)
+
+        #  m = motifs.create(motifs_of_interest,alphabet="GAVLITSMCPFYWHKRDENQ")
+        #  for motif in m.search_instances(protein_structures.fasta):
+        #       print(motif)
+        # matches = re.finditer(r"")
+
+
 class CreateCombinatorics(Characteristics):
     def __init__(self, binding_site_database: Path):
         super().__init__(binding_site_database)
-        self.collection = Collection(self.working_directory, HomologyStructureFetcher(), UniProtAcessionFetcher())
 
     def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
         pdb_parser = PDB.PDBParser()
-        working_dir: Path = self.binding_site_database.joinpath(structure_file.id)
+        #  working_dir: Path = self.binding_site_database.joinpath(structure_file.id)
 
         pdb = pdb_parser.get_structure(structure_file.path.name, structure_file.path)
-        io = PDBIO()
+        residues = [res for res in pdb.get_residues()]
+        iter_substructures = itertools.combinations(residues, r=3)
+        pdb_ids = [residue.id[1] for residue in pdb.get_residues()]
 
-    #  for chain in pdb[0]:
+        for index, substructure in enumerate(iter_substructures):
+            io = PDBIO()
+            substructure_ids = [res_id.id[1] for res_id in substructure]
+            for chain in pdb[0]:
+                [chain.detach_child((' ', id, ' ')) for id in pdb_ids if id not in substructure_ids]
+            io.set_structure(pdb)
+            io.save(str(self.binding_site_database.joinpath(
+                structure_file.path.name.split(".")[0] + "_" + str(index) + ".pdb")))
+            pdb = pdb_parser.get_structure(structure_file.path.name, structure_file.path)
+
+            #  for chain in pdb[0]:
     #      [chain.detach_child((' ', id, ' ')) for id in residue_ids_to_remove]
 
 
@@ -230,6 +345,41 @@ class FindBindingSite(Characteristics):
         d_matrix = distance_matrix(pdb_coords, cluster_coords)
         np.savetxt(self.binding_site_database.joinpath(structure_file.id).joinpath("autosite_pred.txt"),
                    np.unique((d_matrix[:] < 4.5).nonzero()[0]))
+
+
+class CalculateSubstructureDistances(Command):
+
+    def __init__(self, junk):
+        super().__init__()
+        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
+
+    def run(self) -> None:
+
+        for protein_structures in self.collection.protein_structure_results.values():
+            distances = np.empty((len(protein_structures.all_structures),
+                                  len(protein_structures.all_structures)),dtype=np.float16)
+            for index, protein_struct in enumerate(tqdm.tqdm(protein_structures.all_structures)):
+                for index2, protein_structures_inner in enumerate(protein_structures.all_structures):
+
+                    distances[index][index2] = self.calculate_vector(protein_struct,
+                                                                     protein_structures_inner)
+       # my_file = open("substructuct_distance.txt","w")
+        np.save(file= "/home/felix/substructuct_distance.txt",arr= distances)
+
+    def calculate_vector(self, structure1, structure2):
+        s1 = get_structure(structure2.path)
+        chain = next(s1.get_chains())
+        coords, seq = get_residue_data(chain)
+        s2 = get_structure(structure1.path)
+        chain2 = next(s2.get_chains())
+        coords2, seq2 = get_residue_data(chain2)
+        alignment = tm_align(coords, coords2, seq, seq2)
+        aligned_seq_1 = coords.dot(alignment.u.T) + alignment.t
+        distances = self.calculate_distance(aligned_seq_1, coords2)
+        return distances
+
+    def calculate_distance(self, coord1, coord2):
+        return np.sqrt(((coord1 - coord2) ** 2).mean())
 
 
 class CheckBindingSiteQuality(Characteristics):
@@ -260,7 +410,7 @@ class CheckBindingSiteQuality(Characteristics):
     #    matched_residue_ids = np.unique(np.array( [atom.parent.id[1] for atom in matched_atoms_indexs]))
 
 
-class CalculateLeastRootMeanSquareDistance(Characteristics):
+class CalculateDistance(Characteristics):
 
     def __init__(self, binding_site_database: Path):
         super().__init__(binding_site_database)
@@ -308,9 +458,10 @@ supported_commands = {
     StructureCharacteristicsMode.BUILD_MOTIFS: BuildMotifStructures,
     StructureCharacteristicsMode.FIND_BINDING_POCKETS: FindBindingSite,
     StructureCharacteristicsMode.CHECK_MOTIF_QUALITY: CheckBindingSiteQuality,
-    StructureCharacteristicsMode.CALCULATE_RMSD: CalculateLeastRootMeanSquareDistance,
+    StructureCharacteristicsMode.CALCULATE_RMSD: CalculateSubstructureDistances,
     StructureCharacteristicsMode.TRIM_PDB: FixPDBFiles,
-    StructureCharacteristicsMode.GET_LINEAGE: GetLineage
+    StructureCharacteristicsMode.GET_LINEAGE: GetLineage,
+    StructureCharacteristicsMode.CREATE_COMBINATORICS: CreateCombinatorics
 }
 
 
