@@ -1,5 +1,7 @@
 import abc
+import copy
 import logging
+import multiprocessing
 import os
 import re
 import subprocess
@@ -7,12 +9,13 @@ import threading
 from abc import ABC
 from typing import List
 import itertools
+
 from Bio.PDB import PDBIO, Selection
 from matplotlib import pyplot as plt
 from scipy.spatial import distance_matrix
 import numpy as np
 import pandas
-from Bio import PDB, motifs, Seq
+from Bio import PDB, motifs, Seq, SeqIO
 from Commands.command import Command, FactoryBuilder
 from pathlib import Path
 import tqdm
@@ -21,7 +24,8 @@ from dataStructure.collections import Collection, HomologyStructureFetcher, Expe
     UniProtAcessionFetcher, UniProtFastaFetcher
 from dataStructure.protein.protein import ProteinStructures
 from dataStructure.protein.structure import StructureFile, HomologyStructure
-from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements, AllowedExt
+from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements, AllowedExt, AminoAcids, \
+    grantham_distance_matrix, grantham_distance_matrix_row_dict
 from tmtools import tm_align
 from tmtools.io import get_structure, get_residue_data
 
@@ -226,19 +230,6 @@ class ClusterGOTerms(Command):
             output_file.write(str(protein_dict))
 
 
-class TMScoreDatabase(Command):
-
-    def __init__(self):
-        super().__init__()
-        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
-
-    def run(self) -> None:
-        for protein_structures in self.collection.protein_structure_results.values():
-            for protein_structures_inner_loop in self.collection.protein_structure_results.values():
-                get_tm(protein_structures.crystal_structures[0].path,
-                       protein_structures_inner_loop.crystal_structures[0].path)
-
-
 class FindCustomBindingSite(Command):
 
     def __init__(self):
@@ -347,39 +338,137 @@ class FindBindingSite(Characteristics):
                    np.unique((d_matrix[:] < 4.5).nonzero()[0]))
 
 
-class CalculateSubstructureDistances(Command):
+class CalculateSubstructureDistances(Characteristics):
 
-    def __init__(self, junk):
-        super().__init__()
+    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
+        pass
+
+    def __init__(self, binding_site):
+        super().__init__(binding_site)
         self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
 
     def run(self) -> None:
+        threads = []
+        # for protein_structures in self.collection.protein_structure_results.values():
+    #    distances = np.empty((len(self.collection.protein_structure_results.values().all_structures),
+    #                          len(self.collection.protein_structure_results.values().all_structures)),
+    #                         dtype=np.float16)
+        distances = np.zeros(shape=( len(self.collection.protein_structure_results.popitem()[1].all_structures), len(self.collection.protein_structure_results.values())-1))
 
-        for protein_structures in self.collection.protein_structure_results.values():
-            distances = np.empty((len(protein_structures.all_structures),
-                                  len(protein_structures.all_structures)),dtype=np.float16)
-            for index, protein_struct in enumerate(tqdm.tqdm(protein_structures.all_structures)):
-                for index2, protein_structures_inner in enumerate(protein_structures.all_structures):
+     #   for index, structures in \
+     #           tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())):
+    #        threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.do_it,
+    #                                     args=[self.collection.protein_structure_results.values()
+    #                                         , structures.all_structures[index], index]))
+        structures = self.collection.protein_structure_results.popitem()[1]
+        for index, structure in tqdm.tqdm(enumerate(structures.all_structures)):
+            #threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.do_it,
+            #                                 args=[self.collection.protein_structure_results.values(), structure, distances[index]]))
+            CalculateSubstructureDistances.do_it(self.collection.protein_structure_results.values(), structure, distances[index])
 
-                    distances[index][index2] = self.calculate_vector(protein_struct,
-                                                                     protein_structures_inner)
-       # my_file = open("substructuct_distance.txt","w")
-        np.save(file= "/home/felix/substructuct_distance.txt",arr= distances)
+        #      for index, protein_structures_inner in enumerate(x):
+        #          pdb_parser = PDB.PDBParser()
+        #         pdb1 = pdb_parser.get_structure(protein_struct.path.name, protein_struct.path)
+        #         pdb_parser2 = PDB.PDBParser()
+        #         pdb2 = pdb_parser2.get_structure(protein_structures_inner.path.name, protein_structures_inner.path)
+        #         threads.append(threading.Thread(target=CalculateSubstructureDistances.calc_everything,
+        #                                        args=[pdb1, pdb2]))
+        # CalculateSubstructureDistances.calculate_vector(protein_struct, protein_structures_inner)
+        #          pdb_coords1 = np.array([atom.center_of_mass() for atom in pdb1.get_residues()])
+        #         pdb_coords2 = np.array([atom.center_of_mass() for atom in pdb2.get_residues()])
+        #        threads.append(threading.Thread(target=CalculateSubstructureDistances.calculate_distance,args=[pdb_coords1,pdb_coords2]))
+        # CalculateSubstructureDistances.calculate_vector(protein_struct, protein_structures_inner)
+        # self.calc_distance(protein_structures,protein_struct,distances,index)
 
-    def calculate_vector(self, structure1, structure2):
-        s1 = get_structure(structure2.path)
-        chain = next(s1.get_chains())
-        coords, seq = get_residue_data(chain)
-        s2 = get_structure(structure1.path)
-        chain2 = next(s2.get_chains())
-        coords2, seq2 = get_residue_data(chain2)
-        alignment = tm_align(coords, coords2, seq, seq2)
-        aligned_seq_1 = coords.dot(alignment.u.T) + alignment.t
-        distances = self.calculate_distance(aligned_seq_1, coords2)
+        #  threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.calc_distance,
+        #                                                 args=[x, protein_struct]))
+        #   for index, protein_structures_inner in enumerate(x):
+        # CalculateSubstructureDistances.calc_distance(protein_struct,protein_structures_inner)
+        #     CalculateSubstructureDistances.calc_distance(x, protein_struct)
+
+        #   [thread.start() for thread in threads]
+        #  [thread.join() for thread in threads]
+        [thread.wait() for thread in threads]
+
+        print("Shit")
+        #    np.save(file="/home/felix/substructuct_distance.txt", arr=distances)
+
+    @staticmethod
+    def do_it(x, protein_struct, distances):
+        for index, protein_structures_inner in enumerate(x):
+            #   pdb_parser = PDB.PDBParser()
+            for protein in protein_structures_inner.all_structures:
+                if int(str(protein_struct.path).split("_")[-1].strip('.pdb')) != int(str(protein.path).split("_")[-1].strip('.pdb')):
+                #    print(f"Skipping {protein.path}")
+                    continue
+            #   pdb1 = pdb_parser.get_structure(protein_struct.path.name, protein_struct.path)
+            #    pdb_parser2 = PDB.PDBParser()
+            #    pdb2 = pdb_parser2.get_structure(protein_structures_inner.path.name, protein_structures_inner.path)
+                s1 = get_structure(protein_struct.path)
+                chain = next(s1.get_chains())
+                coords, seq = get_residue_data(chain)
+                s2 = get_structure(protein.path)
+                chain2 = next(s2.get_chains())
+                coords2, seq2 = get_residue_data(chain2)
+                alignment = tm_align(coords, coords2, seq, seq2)
+                aligned_seq_1 = coords.dot(alignment.u.T) + alignment.t
+                sequence = AminoAcids.get_rep(seq)
+                #distances[index] = CalculateSubstructureDistances.calculate_distance(aligned_seq_1, coords2)
+                sequence2 = AminoAcids.get_rep(seq2)
+                grantham_similarity = np.zeros(len(sequence))
+                for index2 in range(len(sequence)):
+                    row = grantham_distance_matrix_row_dict[type(sequence[index2])]
+                    column = grantham_distance_matrix_row_dict[type(sequence2[index2])]
+                    physicochemical_value =grantham_distance_matrix[row][column]
+                    grantham_similarity[index2] = physicochemical_value
+                #grantham_distance_matrix
+                distances[index] = CalculateSubstructureDistances.calculate_distance(aligned_seq_1, coords2, grantham_similarity)
+
+                break
+        # [thread.join() for thread in threads]
+
+
+    @staticmethod
+    def calc_distance(x, protein_struct):
+        for index, protein_structures_inner in enumerate(x):
+            CalculateSubstructureDistances.calculate_vector(protein_struct, protein_structures_inner)
+
+        # my_file = open("substructuct_distance.txt","w")
+
+    @staticmethod
+    #  @numba.jit(nopython=True)
+    def calculate_vector(structure1, structure2):
+        pdb_parser = PDB.PDBParser()
+        pdb1 = pdb_parser.get_structure(structure1.path.name, structure1.path)
+        pdb_coords1 = np.array([atom.center_of_mass() for atom in pdb1.get_residues()])
+        # pdb_seq1 = [res.resname for res in pdb1.get_atoms()]
+
+        pdb_parser2 = PDB.PDBParser()
+        pdb2 = pdb_parser2.get_structure(structure2.path.name, structure2.path)
+        #    pdb_coords2 = np.array([residue.get_vector().get_array() for residue in pdb2.get_atoms()])
+        # pdb_seq2 = [res.resname for res in pdb2.get_residues()]
+
+        # tm_align(pdb_coords1,pdb_coords2,str(structure1.fasta).replace('X',''),str(structure2.fasta).replace('X','') )
+        pdb_coords2 = np.array([atom.center_of_mass() for atom in pdb2.get_residues()])
+
+        distances = CalculateSubstructureDistances.calculate_distance(pdb_coords1, pdb_coords2)
         return distances
 
-    def calculate_distance(self, coord1, coord2):
-        return np.sqrt(((coord1 - coord2) ** 2).mean())
+    #  s1 = get_structure(structure2.path)
+    #  chain = next(s1.get_chains())
+    #  coords, seq = get_residue_data(chain)
+    #  s2 = get_structure(structure1.path)
+    #  chain2 = next(s2.get_chains())
+    #  coords2, seq2 = get_residue_data(chain2)
+    #  alignment = tm_align(coords, coords2, seq, seq2)
+    #   aligned_seq_1 = coords.dot(alignment.u.T) + alignment.t
+    #  distances = CalculateSubstructureDistances.calculate_distance(aligned_seq_1, coords2)
+    #  distances = CalculateSubstructureDistances.calculate_distance(coords, coords2)
+    #  return distances
+
+    @staticmethod
+    def calculate_distance(coord1, coord2, physiochemical_prop):
+        return np.sum(1/(0.3*np.cosh( np.sqrt(((coord1 - coord2) ** 2)))) * (1 - physiochemical_prop / 215))
 
 
 class CheckBindingSiteQuality(Characteristics):

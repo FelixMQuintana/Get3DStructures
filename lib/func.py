@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, List
+import transformers
 
 from Bio import SeqIO
 
@@ -82,4 +83,17 @@ def parse_fasta_to_gp():
     with open("/home/felix/kspT_200_230_parsed.fasta", "w") as output_handle:
         for record in SeqIO.parse("/home/felix/kspT_200_230_parsed.gp", "gb"):
             SeqIO.write(record, output_handle, format="fasta")
+
+
+def build_db(path: Path, accession_db):
+    accession = open(accession_db, "r")
+    for line in accession:
+        accession = line.split("\n")[0]
+        accession = accession.split(".1")[0]
+        accession = ''.join(accession.split('_'))
+        os.mkdir(path.joinpath(accession))
+    x = os.scandir(path)#"/media/felix/Research/KpsData/KpsT/substructures")
+    for entry in x:
+        p = path.joinpath(''.join(entry.name.split("_")[0:-1]))
+        os.system("mv %s %s"% (entry.path, str(p.joinpath(entry.name))))
 

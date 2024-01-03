@@ -2,7 +2,7 @@
 
 """
 import logging
-from multiprocessing import pool
+from multiprocessing import Pool
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -19,7 +19,7 @@ class Command(ABC):
 
     def __init__(self) -> None:
         config_json = load_json(Path(CONFIG_PATH))
-        self.thread_pool = pool.ThreadPool(config_json[ConfigOptions.THREAD_COUNT.value])
+        self.thread_pool = Pool(config_json[ConfigOptions.THREAD_COUNT.value])
         self.working_directory: Path = Path(config_json[ConfigOptions.DATABASE_LOCATION.value])
         self.structure_type: str = config_json[ConfigOptions.STRUCTURE_TYPE.value]
         self.args = config_json

@@ -22,7 +22,6 @@ from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery, UniProtIDQuery, Fa
 import dask.dataframe as df
 from modeller import *
 from modeller.automodel import *
-from Bio import SeqIO
 
 
 def generate_alpha_fold_structures(fasta_path: Path):
