@@ -63,6 +63,7 @@ class HomologyStructure(StructureFile):
     def piddt(self, ) -> List:
         if self._piddt is None:
             read_alpha_fold_file_obj = open(self.path.with_suffix(AllowedExt.PDB.value), "r")
+            print(self.path.with_suffix(AllowedExt.PDB.value))
             plddt = []
             current_res_num = 0
             for line in read_alpha_fold_file_obj:

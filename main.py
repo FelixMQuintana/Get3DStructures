@@ -9,7 +9,8 @@ from pathlib import Path
 
 # from Commands.Analyze import Analyze
 from Commands.Characteristics import CharacteristicsFactory, ClusterGOTerms, FindCustomBindingSite
-from Commands.Structure import StructureFactory, HomologyModel
+from Commands.Structure.Structure import StructureFactory
+from Commands.Structure.model import HomologyModel
 from Commands.repair import RepairStructures
 from Commands.fasta_parser import FastaData, ParseMapping, MappPDBToGenBankHits
 from lib.const import AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, ConfigOptions, \
@@ -44,6 +45,11 @@ def find_characteristics(mode: StructureCharacteristicsMode =
     command = CharacteristicsFactory().build(mode, Path(os.path.abspath(binding_site_database)))
     command.run()
 
+@app.command()
+def protein_similarity():
+    command = SimilarityMetricBuilder()
+    command.run()
+
 
 @app.command()
 def cluster_go_terms( uniprot_id_list: Path = typer.Option(...,)):
@@ -52,7 +58,7 @@ def cluster_go_terms( uniprot_id_list: Path = typer.Option(...,)):
 
 @app.command()
 def tm_score():
-    command = FindCustomBindingSite()
+    command = FindCustomBindingSite("nothingyet")
     command.run()
 
 @app.command()
@@ -66,7 +72,7 @@ def get_structures(mode: StructureBuildMode =
     PDB databank. If no structure is available, ColabFold will run locally to generate the structure.
     """
 
-    command = StructureFactory().build(mode, uniprot_id_list, sequence_db)
+    command = StructureFactory().build(mode, uniprot_id_list)
     command.run()
 
 #@app.command()

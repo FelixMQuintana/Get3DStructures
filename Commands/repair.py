@@ -30,11 +30,13 @@ class RepairStructures(Command):
          if not self.repaired_dataset.joinpath(protein_structures.id).exists()]
 
     def run(self) -> None:
-        threads = [self.thread_pool.apply_async(self.command, [structure_file, protein_structures]) for
-                   protein_structures in
-                   self.collection.protein_structure_results.values() for structure_file in
-                   protein_structures.all_structures]
-        [thread.wait() for thread in threads]
+        [self.command(structure_file, protein_structures)
+        for protein_structures in self.collection.protein_structure_results.values() for structure_file in protein_structures.all_structures]
+       # threads = [self.thread_pool.apply_async(self.command, [structure_file, protein_structures]) for
+       # #           protein_structures in
+       #            self.collection.protein_structure_results.values() for structure_file in
+       #            protein_structures.all_structures]
+        #[thread.wait() for thread in threads]
 
     def command(self, structure_file: StructureFile, protein_structure: ProteinStructures):
         working_dir: Path = self.repaired_dataset.joinpath(structure_file.id)

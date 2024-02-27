@@ -9,13 +9,17 @@ import threading
 from abc import ABC
 from typing import List
 import itertools
-
+import scipy
+import torch
 from Bio.PDB import PDBIO, Selection
 from matplotlib import pyplot as plt
 from scipy.spatial import distance_matrix
 import numpy as np
 import pandas
-from Bio import PDB, motifs, Seq, SeqIO
+from Bio import PDB, motifs, Seq, SeqIO, AlignIO
+from transformers import EsmTokenizer, EsmModel
+
+import lib.func
 from Commands.command import Command, FactoryBuilder
 from pathlib import Path
 import tqdm
@@ -24,14 +28,17 @@ from dataStructure.collections import Collection, HomologyStructureFetcher, Expe
     UniProtAcessionFetcher, UniProtFastaFetcher
 from dataStructure.protein.protein import ProteinStructures
 from dataStructure.protein.structure import StructureFile, HomologyStructure
-from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements, AllowedExt, AminoAcids, \
-    grantham_distance_matrix, grantham_distance_matrix_row_dict
+from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements, AllowedExt, AminoAcids
+from lib.func import get_encoding, calculate_rmsd, calculate_grantham_distance
 from tmtools import tm_align
 from tmtools.io import get_structure, get_residue_data
-
-
+from scipy.spatial.transform import Rotation
+import matplotlib
+# from matplotlib import pyplot as plt
+matplotlib.use('TkAgg')
 # import transformers
-
+from lib.func import *
+from lib.const import e_coli_k_type
 class Characteristics(Command, ABC):
 
     def __init__(self, binding_site_database: Path):
@@ -45,7 +52,7 @@ class Characteristics(Command, ABC):
         self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
 
     @abc.abstractmethod
-    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
+    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures, *args) -> None:
         raise NotImplementedError
 
     def run(self) -> None:
@@ -232,55 +239,108 @@ class ClusterGOTerms(Command):
 
 class FindCustomBindingSite(Command):
 
-    def __init__(self):
+    def __init__(self, align_file):
         super().__init__()
-        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher(), UniProtFastaFetcher())
+        self.collection = Collection(self.working_directory, HomologyStructureFetcher())
+        self.alignment = AlignIO.read(align_file,"fasta")
 
+    #def run2(self) -> None:
+    #    pdb_parser = PDB.PDBParser()
+    #    io = PDBIO()
+    #    for protein_structures in self.collection.protein_structure_results.values():
+    def calculate_coverage(self, rec, start, end):
+        alignment_motif = rec.seq[start:end+1]#194:206]
+        length_motif = len(alignment_motif)
+        invalid_count = 0
+        indexs = []
+        for index, char in enumerate(alignment_motif):
+            if char == "-":
+                invalid_count +=1
+                indexs.append(index)
+        if invalid_count==0:
+            return alignment_motif
+        if invalid_count/length_motif <.40:
+            motif=""
+            previous_index=None
+            print(indexs)
+            for index in indexs:
+                if motif == "":
+                    motif+=str(rec.seq[start:start+index])
+                else:
+                    motif+= str(rec.seq[previous_index:start+index])
+                previous_index = index
+            motif+= str(rec.seq[start+previous_index+1:end+len(indexs)+1])
+        else:
+            return None
+        return motif
+       #     for index, char in enumerate(alignment_motif):
+       #         if char == "-":
+       #             index
     def run(self) -> None:
         pdb_parser = PDB.PDBParser()
         io = PDBIO()
-        for protein_structures in self.collection.protein_structure_results.values():
+        accessions = strain_to_accession(Path("/home/felix/testing.json"), e_coli_k_type)
+        for index, protein_structures in enumerate(self.collection.protein_structure_results.values()):
             #  motifs_of_interest = [Seq.Seq("GXXGXGKST")]#, Seq.Seq("XXXXD")]
-
+            record_of_interest = None
+            for rec in self.alignment:
+                print(accessions[protein_structures.id][0].replace(" ",""))
+                print(rec.id)
+                if rec.id == accessions[protein_structures.id][0].replace(" ",""):
+                    record_of_interest = rec
+            motif=str(self.calculate_coverage(record_of_interest,199,209))
+            print(motif)
+          #  print(protein_structures.all_structures[0].fasta)
+            stability_motif = re.search(motif, str(protein_structures.all_structures[0].fasta))
+            print(stability_motif)
             try:
-                print(protein_structures.all_structures[0].path)
-                stability_motif = re.search(r"Y[A-Za-z]{2}D", str(protein_structures.crystal_structures[0].fasta))
-                binding_motif = re.search(r"G[A-Za-z]{2}G[A-Za-z]GKST",
-                                          str(protein_structures.crystal_structures[0].fasta))
-                histine_pos = re.finditer(r"H", str(protein_structures.crystal_structures[0].fasta))
-                #   if 0 >len(stability_motif) < 2:
                 stability_motif = list(range(stability_motif.start() + 1, stability_motif.end() + 1))
-                # elif len(stability_motif) > 0:
-                #        stability_motif = list(range(stability_motif.start(), stability_motif.end()))
-
-                binding_motif = list(range(binding_motif.start() + 1, binding_motif.end() + 1))
-                match_motif = None
-                for match in histine_pos:
-                    if match.end() < 185:
-                        match_motif = match
-
-                histine_pos = list(range(match_motif.start() + 1, match_motif.end() + 1))
             except AttributeError as ex:
-                print(f"Skipping because of {ex}")
+                print(f'skipping because of {ex}')
                 continue
-            except IndexError as ex:
-                print(f"Indexing error because of {ex}")
-                continue
-            stability_motif.extend(binding_motif)
-            stability_motif.extend(histine_pos)
+        #     alignment_motif
+            #try:
+            #    print(protein_structures.all_structures[0].path)
+            #    stability_motif = re.search(r"Y[A-Za-z]{2}D", str(protein_structures.homology_structures[0].fasta))
+            #    binding_motif = re.search(r"G[A-Za-z]{2}G[A-Za-z]GKST",
+            #                              str(protein_structures.all_structures[0].fasta))
+            #    histine_pos = re.finditer(r"H", str(protein_structures.all_structures[0].fasta))
+            #    #   if 0 >len(stability_motif) < 2:
+            #    stability_motif = list(range(stability_motif.start() + 1, stability_motif.end() + 1))
+            #    # elif len(stability_motif) > 0:
+            #    #        stability_motif = list(range(stability_motif.start(), stability_motif.end()))
+            #
+            #    binding_motif = list(range(binding_motif.start() + 1, binding_motif.end() + 1))
+            #    match_motif = None
+            #    for match in histine_pos:
+            #        if 183 > match.end() > 175:
+            #            match_motif = match
+
+
+            #    histine_pos = list(range(match_motif.start() + 1, match_motif.end() + 1))
+            #except AttributeError as ex:
+            #    print(f"Skipping because of {ex}")
+            #    continue
+            #except IndexError as ex:
+            #    print(f"Indexing error because of {ex}")
+            #    continue
+            #stability_motif.extend(binding_motif)
+            #stability_motif.extend(histine_pos)
             working_dir: Path = self.working_directory.joinpath(protein_structures.all_structures[0].id)
             pdb = pdb_parser.get_structure(protein_structures.all_structures[0].path.name,
                                            protein_structures.all_structures[0].path)
             # pdb_cluster_rep = pdb_parser.get_structure(id ,self.binding_site_database.joinpath(id).joinpath(
             #                                              structure_file.path.name.split(".")[0]).joinpath(structure_file.path.name.split(".")[0] + "_cl_001.pdb",
             #                                          ))
+
             pdb_ids = [residue.id[1] for residue in pdb.get_residues()]
             for chain in pdb[0]:
                 [chain.detach_child((' ', id, ' ')) for id in pdb_ids if id not in stability_motif]
+         #       [chain.detach_child((' ', id, ' ')) for id in pdb_ids if id < 194 or id > 205]
             # pdb_coords = np.array([residue.center_of_mass() for residue in pdb.get_residues()])
             io.set_structure(pdb)
             io.save(str(self.working_directory.joinpath(
-                protein_structures.crystal_structures[0].path.name + "_pocket.pdb")))
+                protein_structures.all_structures[0].path.name + "_beta_sheet.pdb")))
         # d_matrix = distance_matrix(pdb_coords, cluster_coords)
 
         #  m = motifs.create(motifs_of_interest,alphabet="GAVLITSMCPFYWHKRDENQ")
@@ -340,31 +400,39 @@ class FindBindingSite(Characteristics):
 
 class CalculateSubstructureDistances(Characteristics):
 
-    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
+    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures, *args) -> None:
         pass
 
     def __init__(self, binding_site):
         super().__init__(binding_site)
-        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
+        self.collection = Collection(self.working_directory, HomologyStructureFetcher())
+        #self.metric = distance_metric
 
     def run(self) -> None:
         threads = []
-        # for protein_structures in self.collection.protein_structure_results.values():
-    #    distances = np.empty((len(self.collection.protein_structure_results.values().all_structures),
-    #                          len(self.collection.protein_structure_results.values().all_structures)),
-    #                         dtype=np.float16)
-        distances = np.zeros(shape=( len(self.collection.protein_structure_results.popitem()[1].all_structures), len(self.collection.protein_structure_results.values())-1))
+        distances = np.zeros(shape=(len(self.collection.protein_structure_results.values()),
+                                    len(self.collection.protein_structure_results.values())))
 
-     #   for index, structures in \
-     #           tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())):
-    #        threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.do_it,
-    #                                     args=[self.collection.protein_structure_results.values()
-    #                                         , structures.all_structures[index], index]))
-        structures = self.collection.protein_structure_results.popitem()[1]
-        for index, structure in tqdm.tqdm(enumerate(structures.all_structures)):
-            #threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.do_it,
+        #self.tokenizer = EsmTokenizer.from_pretrained("facebook/esm2_t33_650M_UR50D")
+        #self.esm_model = EsmModel.from_pretrained("facebook/esm2_t33_650M_UR50D", torch_dtype="auto").to("cuda")
+        #self.collection2 = Collection(Path("/media/felix/Research/KpsData/KpsT/"), ExperimentalStructureFetcher())
+        self.metric = lib.func.granthem_distance_fixed
+        #self.metric = self.llm_embedding_distance
+        distances = self.calculate_distances(distances)
+        #   for index, structures in \
+        #           tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())):
+        #        threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.do_it,
+        #                                     args=[self.collection.protein_structure_results.values()
+        #                                         , structures.all_structures[index], index]))
+        #structures = self.collection.protein_structure_results.popitem()[1]
+        #for index, structure in tqdm.tqdm(enumerate(structures.all_structures)):
+            # threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.do_it,
             #                                 args=[self.collection.protein_structure_results.values(), structure, distances[index]]))
-            CalculateSubstructureDistances.do_it(self.collection.protein_structure_results.values(), structure, distances[index])
+       #     encoding = get_encoding([structure.fasta], self.tokenizer,self.esm_model)
+       #     CalculateSubstructureDistances.do_it(self.collection.protein_structure_results.values(), structure,
+       #                                          distances[index],
+       #                                          lib.func.calculate_grantham_distance, self.collection2.protein_structure_results,encoding)
+            #  CalculateSubstructureDistances.llm_embedding_distance)
 
         #      for index, protein_structures_inner in enumerate(x):
         #          pdb_parser = PDB.PDBParser()
@@ -391,84 +459,108 @@ class CalculateSubstructureDistances(Characteristics):
         [thread.wait() for thread in threads]
 
         print("Shit")
-        #    np.save(file="/home/felix/substructuct_distance.txt", arr=distances)
-
-    @staticmethod
-    def do_it(x, protein_struct, distances):
-        for index, protein_structures_inner in enumerate(x):
-            #   pdb_parser = PDB.PDBParser()
-            for protein in protein_structures_inner.all_structures:
-                if int(str(protein_struct.path).split("_")[-1].strip('.pdb')) != int(str(protein.path).split("_")[-1].strip('.pdb')):
-                #    print(f"Skipping {protein.path}")
-                    continue
-            #   pdb1 = pdb_parser.get_structure(protein_struct.path.name, protein_struct.path)
-            #    pdb_parser2 = PDB.PDBParser()
-            #    pdb2 = pdb_parser2.get_structure(protein_structures_inner.path.name, protein_structures_inner.path)
-                s1 = get_structure(protein_struct.path)
-                chain = next(s1.get_chains())
-                coords, seq = get_residue_data(chain)
-                s2 = get_structure(protein.path)
-                chain2 = next(s2.get_chains())
-                coords2, seq2 = get_residue_data(chain2)
-                alignment = tm_align(coords, coords2, seq, seq2)
-                aligned_seq_1 = coords.dot(alignment.u.T) + alignment.t
-                sequence = AminoAcids.get_rep(seq)
-                #distances[index] = CalculateSubstructureDistances.calculate_distance(aligned_seq_1, coords2)
-                sequence2 = AminoAcids.get_rep(seq2)
-                grantham_similarity = np.zeros(len(sequence))
-                for index2 in range(len(sequence)):
-                    row = grantham_distance_matrix_row_dict[type(sequence[index2])]
-                    column = grantham_distance_matrix_row_dict[type(sequence2[index2])]
-                    physicochemical_value =grantham_distance_matrix[row][column]
-                    grantham_similarity[index2] = physicochemical_value
-                #grantham_distance_matrix
-                distances[index] = CalculateSubstructureDistances.calculate_distance(aligned_seq_1, coords2, grantham_similarity)
-
-                break
-        # [thread.join() for thread in threads]
+        np.save(file="//media/felix/ShortTerm/Research/KpsData/KpsT/pathotype_structures/grantham_only_alphafold_pathotype", arr=distances)
+   #     for index, structures in tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())):
+   #$         for structure in structures.all_structures:
+    #            structure.id
 
 
-    @staticmethod
-    def calc_distance(x, protein_struct):
-        for index, protein_structures_inner in enumerate(x):
-            CalculateSubstructureDistances.calculate_vector(protein_struct, protein_structures_inner)
+    def calculate_distances(self,distances):
+        for index, structures in tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())):
+            for structure in structures.all_structures:
+                #encoding = get_encoding([structure.fasta], self.tokenizer, self.esm_model)
+                for index2, structures_inner in enumerate(self.collection.protein_structure_results.values()):
+                    for structure_inner in structures_inner.all_structures:
 
-        # my_file = open("substructuct_distance.txt","w")
-
-    @staticmethod
-    #  @numba.jit(nopython=True)
-    def calculate_vector(structure1, structure2):
-        pdb_parser = PDB.PDBParser()
-        pdb1 = pdb_parser.get_structure(structure1.path.name, structure1.path)
-        pdb_coords1 = np.array([atom.center_of_mass() for atom in pdb1.get_residues()])
-        # pdb_seq1 = [res.resname for res in pdb1.get_atoms()]
-
-        pdb_parser2 = PDB.PDBParser()
-        pdb2 = pdb_parser2.get_structure(structure2.path.name, structure2.path)
-        #    pdb_coords2 = np.array([residue.get_vector().get_array() for residue in pdb2.get_atoms()])
-        # pdb_seq2 = [res.resname for res in pdb2.get_residues()]
-
-        # tm_align(pdb_coords1,pdb_coords2,str(structure1.fasta).replace('X',''),str(structure2.fasta).replace('X','') )
-        pdb_coords2 = np.array([atom.center_of_mass() for atom in pdb2.get_residues()])
-
-        distances = CalculateSubstructureDistances.calculate_distance(pdb_coords1, pdb_coords2)
+                        structure_coords = self.get_coords(structure)
+                        structure_inner_coords = self.get_coords(structure_inner)
+                      #  print(structure.path)
+                      #  print(structure_inner.path)
+                        R, t = lib.func.find_rigid_alignment(structure_coords,structure_inner_coords)
+                        aligned_structure_coords = (R.dot(structure_coords.T)).T + t
+                      #  rot, score= Rotation.align_vectors(structure_coords,structure_inner_coords)
+                      #  aligned_coords_inner = rot.apply(structure_inner_coords)
+                        sequence = AminoAcids.get_rep(structure.fasta)
+                        sequence2 = AminoAcids.get_rep(structure_inner.fasta)
+                   #     distances[index][index2] = self.metric(aligned_structure_coords, structure_inner_coords)
+                        distances[index][index2] = self.metric(sequence1=AminoAcids.get_rep(structure.fasta),
+                                sequence2=AminoAcids.get_rep(structure_inner.fasta))#, coords1=aligned_structure_coords,
+                     #           coords2=structure_inner_coords)
+                       # distances[index][index2] = self.metric(structure.fasta.strip("X"), structure_inner.fasta.strip("X"), structure_coords, structure_inner_coords, encoding)
         return distances
 
-    #  s1 = get_structure(structure2.path)
-    #  chain = next(s1.get_chains())
-    #  coords, seq = get_residue_data(chain)
-    #  s2 = get_structure(structure1.path)
-    #  chain2 = next(s2.get_chains())
-    #  coords2, seq2 = get_residue_data(chain2)
-    #  alignment = tm_align(coords, coords2, seq, seq2)
-    #   aligned_seq_1 = coords.dot(alignment.u.T) + alignment.t
-    #  distances = CalculateSubstructureDistances.calculate_distance(aligned_seq_1, coords2)
-    #  distances = CalculateSubstructureDistances.calculate_distance(coords, coords2)
-    #  return distances
+    def get_coords(self, structure):
+        pdb_parser = PDB.PDBParser()
+        protein_b = pdb_parser.get_structure(structure.id, structure.path)
+        coords_protein_b = []
+        for x in protein_b.get_atoms():
+        #    if x.name in ["N", "CA", "C", "O"]:
+            if x.name in ["CA"]:
+                coords_protein_b.append(list(x.coord))
+        return np.array(coords_protein_b)
+
 
     @staticmethod
-    def calculate_distance(coord1, coord2, physiochemical_prop):
-        return np.sum(1/(0.3*np.cosh( np.sqrt(((coord1 - coord2) ** 2)))) * (1 - physiochemical_prop / 215))
+    def do_it(x, protein_struct, distances, metric,proteins2,encoding):
+        for index, protein_structures_inner in enumerate(x):
+            pdb_parser = PDB.PDBParser()
+            for protein in protein_structures_inner.all_structures:
+           #     if int(str(protein_struct.path).split("_")[-1].strip('.pdb')) != int(
+           #             str(protein.path).split("_")[-1].strip('.pdb')):
+                    #    print(f"Skipping {protein.path}")
+           #         continue
+                #   pdb1 = pdb_parser.get_structure(protein_struct.path.name, protein_struct.path)
+                #    pdb_parser2 = PDB.PDBParser()
+                #    pdb2 = pdb_parser2.get_structure(protein_structures_inner.path.name, protein_structures_inner.path)
+           #     s1 = get_structure(protein_struct.path)
+
+                protein_a = pdb_parser.get_structure(protein_struct.id, protein_struct.path)
+                coords_protein_a = []
+                for x in protein_a.get_atoms():
+                    if x.name in ["N", "CA", "C", "O"]:
+                        coords_protein_a.append(list(x.coord))
+                coords_protein_a = np.array(coords_protein_a)
+                protein_name = protein_struct.path.name.split("_")[0:-1]
+                if protein_name[0] == "WP":
+                    protein_name = protein_name[0] + "_"+protein_name[1]+".1"
+                else:
+                    protein_name = protein_name[0]+".1"
+              #  chain = next(s1.get_chains())
+             #   coords, seq = get_residue_data(chain)
+             #   s2 = get_structure(protein.path)
+                protein_b = pdb_parser.get_structure(protein.id, protein.path)
+                coords_protein_b = []
+                for x in protein_b.get_atoms():
+                    if x.name in ["N", "CA", "C", "O"]:
+                        coords_protein_b.append(list(x.coord))
+                coords_protein_b = np.array(coords_protein_b)
+                protein_name2 = protein.path.name.split("_")[0:-1]
+                if protein_name2[0] == "WP":
+                    protein_name2 = protein_name2[0] + "_"+protein_name2[1]+".1"
+                else:
+                    protein_name2 = protein_name2[0]+".1"
+
+                rot, rmsd = scipy.spatial.transform.Rotation.align_vectors(coords_protein_a, coords_protein_b)
+                coords_protein_b_aligned = rot.apply(coords_protein_b)
+             #   chain2 = next(s2.get_chains())
+           #     coords2, seq2 = get_residue_data(chain2)
+       #         alignment = tm_align(coords, coords2, seq, seq2)
+        #        aligned_seq_coords1 = coords.dot(alignment.u.T) + alignment.t
+                sequence = AminoAcids.get_rep(protein_struct.fasta)
+                sequence2 = AminoAcids.get_rep(protein.fasta)
+                distance_metric = metric(coords_protein_a,coords_protein_b_aligned)
+                #distance_metric = metric(sequence,sequence2,coords_protein_a,coords_protein_b_aligned) #metric(protein_struct.fasta, protein.fasta,  coords_protein_a, coords_protein_b_aligned)#, proteins2[protein_name].crystal_fastas[0],proteins2[protein_name2].crystal_fastas[0],encoding)
+                distances[index] = distance_metric
+
+                break
+
+    def llm_embedding_distance(self, sequence1, sequence2, coords1, coords2, encoding):
+        embeddings = get_encoding([ sequence2], self.tokenizer, self.esm_model)
+        l1_norm = torch.sum(torch.abs(encoding[0]["embedding"] - embeddings[0]["embedding"]))
+        geomerty = np.sum(np.sum((1 / (np.cosh(0.3 * np.linalg.norm(np.array([coords1[amino_acid1], coords2[amino_acid2]]))))) for amino_acid2 in range(len(coords2)))
+               for amino_acid1 in range(len(coords1)))
+        return geomerty*l1_norm
+     #   return np.sum(1 / (0.3 * np.cosh(calculate_rmsd(coords1, coords2))) * l1_norm)
 
 
 class CheckBindingSiteQuality(Characteristics):
@@ -503,7 +595,7 @@ class CalculateDistance(Characteristics):
 
     def __init__(self, binding_site_database: Path):
         super().__init__(binding_site_database)
-        self.per_motif_rmsd_vectors = []
+        self.per_motif_rmsd_vectors = np.empty(shape=(len(self.collection.protein_structure_results.values()), len(self.collection.protein_structure_results.values())))
 
     def run(self) -> None:
         [(logging.info("Building database for %s." % self.binding_site_database.joinpath(structure_file.id)),
@@ -511,12 +603,13 @@ class CalculateDistance(Characteristics):
          for protein_structures in self.collection.protein_structure_results.values()
          for structure_file in protein_structures.all_structures
          if not self.binding_site_database.joinpath(structure_file.id).exists()]
-        [self.command(structure, protein_structures) for protein_structures in
-         self.collection.protein_structure_results.values() for
+        [self.command(structure, protein_structures,index) for index, protein_structures in
+         tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())) for
          structure in protein_structures.all_structures]
-        rmsd_vector = np.array(self.per_motif_rmsd_vectors)
+      #  rmsd_vector = np.array(self.per_motif_rmsd_vectors)
+        np.save("/home/felix/rmsd_vector",self.per_motif_rmsd_vectors)
 
-    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures) -> None:
+    def command(self, structure_file: StructureFile, protein_structure: ProteinStructures, *args) -> None:
         """
 
         Parameters
@@ -531,21 +624,27 @@ class CalculateDistance(Characteristics):
         pdb_parser = PDB.PDBParser()
         pdb_reference = pdb_parser.get_structure(structure_file.path.name, structure_file.path)
         pdb_coords_reference = np.array([atom.get_coord() for atom in pdb_reference.get_atoms()])
-        for protein_structures in self.collection.protein_structure_results.values():
+        for index, protein_structures in enumerate(self.collection.protein_structure_results.values()):
             for structure in protein_structures.all_structures:
-                if structure.path == structure_file.path:
-                    continue
-
-                pdb = pdb_parser.get_structure(structure.path.name, structure.path)
-                pdb_coords = np.array([atom.get_coord() for atom in pdb.get_atoms()])
-                self.per_motif_rmsd_vectors.append(np.sqrt((pdb_coords_reference - pdb_coords) ** 2 /
-                                                           pdb_coords_reference.shape[0]))
+               # pdb = pdb_parser.get_structure(structure.path.name, structure.path)
+               # pdb_coords = np.array([atom.get_coord() for atom in pdb.get_atoms()])
+                s1 = get_structure(structure_file.path)
+                chain = next(s1.get_chains())
+                coords, seq = get_residue_data(chain)
+                s2 = get_structure(structure.path)
+                chain2 = next(s2.get_chains())
+                coords2, seq2 = get_residue_data(chain2)
+                alignment = tm_align(coords, coords2, seq, seq2)
+                aligned_seq_coords1 = coords.dot(alignment.u.T) + alignment.t
+                self.per_motif_rmsd_vectors[args[0]][index] = lib.func.calculate_rmsd(aligned_seq_coords1, coords2)
+            #self.per_motif_rmsd_vectors[args[0]][index] =lib.func.calculate_rmsd(pdb_coords_reference, pdb_coords) # (np.sqrt((pdb_coords_reference - pdb_coords) ** 2 /
+                                                         #  pdb_coords_reference.shape[0]))
 
 
 supported_commands = {
     StructureCharacteristicsMode.AUTOSITE: FindPockets,
     StructureCharacteristicsMode.BUILD_MOTIFS: BuildMotifStructures,
-    StructureCharacteristicsMode.FIND_BINDING_POCKETS: FindBindingSite,
+    StructureCharacteristicsMode.FIND_BINDING_POCKETS: FindCustomBindingSite,
     StructureCharacteristicsMode.CHECK_MOTIF_QUALITY: CheckBindingSiteQuality,
     StructureCharacteristicsMode.CALCULATE_RMSD: CalculateSubstructureDistances,
     StructureCharacteristicsMode.TRIM_PDB: FixPDBFiles,

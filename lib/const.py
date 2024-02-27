@@ -48,6 +48,15 @@ class StructureBuildMode(Enum):
     HomologyModel = "homology_model"
 
 
+class SimilarityDistance(Enum):
+    GRANTHAM = "grantham"
+    BACKBONE = "backbone"
+    LLM = "llm"
+
+class ClusterAnalysisType(Enum):
+    RAND_INDEX = "rand-index"
+    DUNN_INDEX = "dunn-index"
+
 class MotifSearchMode(Enum):
     CLUSTER = "cluster"
     FEATURE_POINTS = "feature_points"
@@ -71,8 +80,8 @@ class SupportedStructureFileTypes(Enum):
 
 
 class SupportedFileTypeRegex(Enum):
-    EXPERIMENTAL_STRUCTURE = "[!AF,!sp]*.pdb"
-    HOMOLOGY_STRUCTURE = "[AF,sp]*.pdb"
+    EXPERIMENTAL_STRUCTURE = "^[!AF,!sp]*.pdb"
+    HOMOLOGY_STRUCTURE = "*ptm_model*.pdb"
     CSV_FILE = "*.csv"
     FASTA_FILE = '*.fasta'
     JSON_FILE = '*.json'
@@ -309,7 +318,7 @@ class AminoAcids(Enum):
 
     @classmethod
     def get_rep(cls, amino_acid_string: str):
-       # logging.debug("Finding type of string")
+        # logging.debug("Finding type of string")
         rep = []
         for letter in amino_acid_string:
             for amino_acid in cls.__members__.values():
@@ -430,3 +439,58 @@ grantham_distance_matrix = np.array([
         [0.18, 0.53, 0.72, 0.32, 0.40, 0.31, 0.59, 0.14, 0.72, 0.81, 0.83, 0.00, 0.47, 0.40, 0.19, 0.49, 0.16, 0.29,
          0.69, 1.00])  # TRP
 ])
+
+class ktypes(Enum):
+    k_plus = "k+",
+    k1 = "k1",
+    k2 = "k2",
+    k100 = "k100",
+    k52 = "k52",
+    k5 = "k5",
+    k14="k14"
+    k15="k15"
+
+e_coli_k_type = {
+    "MNCRE44": ktypes.k_plus,
+    "APEC O1": ktypes.k1,
+    "CE10": ktypes.k_plus,
+    "G749": ktypes.k1,
+    "IAI39": ktypes.k1,
+    "IHE3034": ktypes.k_plus,
+    "APEC IMT5155": ktypes.k1,
+    "MCJCHV-1":ktypes.k_plus,
+    "NC101": ktypes.k1,
+    "NMEC O18": ktypes.k1,
+    "O18": ktypes.k1,
+    "RS218": ktypes.k1,
+    "S88": ktypes.k1,
+    "SF-088": ktypes.k1,
+    "SF-166": ktypes.k1,
+    "SF-173": ktypes.k1,
+    "SF-468": ktypes.k1,
+    "UM146": ktypes.k_plus,
+    "UTI89": ktypes.k1,
+    "VR50": ktypes.k1,
+    "ST648": ktypes.k_plus,
+    "Ecol_743":ktypes.k_plus,
+    "536": ktypes.k15,
+    "Ecol_448":ktypes.k_plus,
+    "EC958":ktypes.k100,
+    "Ecol_745":ktypes.k_plus,
+    "MVAST0167":ktypes.k100,
+    "NRG 857C":ktypes.k_plus,
+    "LF82":ktypes.k_plus,
+    "SE15":ktypes.k_plus,
+    "JJ1887":ktypes.k14,
+    "ED1a": ktypes.k_plus,
+    "REL606":ktypes.k_plus,
+    "K-15KW01":ktypes.k_plus,
+    "042":ktypes.k_plus,
+    "NA114":ktypes.k_plus,
+    "ZH193":ktypes.k5,
+    "ZH063":ktypes.k5,
+    "SaT040": ktypes.k5,
+    "CD306":ktypes.k5,
+    "ABU 83972":ktypes.k5,
+    "JJ2434": ktypes.k5
+}
