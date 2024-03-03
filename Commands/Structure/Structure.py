@@ -6,7 +6,7 @@ import threading
 from pathlib import Path
 from typing import List
 
-import modeller
+#import modeller
 import typer
 import textwrap
 from Commands.command import Command, FactoryBuilder
@@ -20,8 +20,8 @@ from lib.const import COLABFOLD_WORKING_DIRECTORY, ColabFoldOptions, \
     AllowedExt, StructureBuildMode
 from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery, UniProtIDQuery, FastaQuery
 import dask.dataframe as df
-from modeller import *
-from modeller.automodel import *
+#from modeller import *
+#from modeller.automodel import *
 
 
 def generate_alpha_fold_structures(fasta_path: Path):

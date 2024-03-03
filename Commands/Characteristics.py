@@ -10,14 +10,12 @@ from abc import ABC
 from typing import List
 import itertools
 import scipy
-import torch
 from Bio.PDB import PDBIO, Selection
 from matplotlib import pyplot as plt
 from scipy.spatial import distance_matrix
 import numpy as np
 import pandas
 from Bio import PDB, motifs, Seq, SeqIO, AlignIO
-from transformers import EsmTokenizer, EsmModel
 
 import lib.func
 from Commands.command import Command, FactoryBuilder
@@ -30,8 +28,8 @@ from dataStructure.protein.protein import ProteinStructures
 from dataStructure.protein.structure import StructureFile, HomologyStructure
 from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements, AllowedExt, AminoAcids
 from lib.func import get_encoding, calculate_rmsd, calculate_grantham_distance
-from tmtools import tm_align
-from tmtools.io import get_structure, get_residue_data
+#from tmtools import tm_align
+#from tmtools.io import get_structure, get_residue_data
 from scipy.spatial.transform import Rotation
 import matplotlib
 # from matplotlib import pyplot as plt
@@ -628,13 +626,13 @@ class CalculateDistance(Characteristics):
             for structure in protein_structures.all_structures:
                # pdb = pdb_parser.get_structure(structure.path.name, structure.path)
                # pdb_coords = np.array([atom.get_coord() for atom in pdb.get_atoms()])
-                s1 = get_structure(structure_file.path)
+             #   s1 = get_structure(structure_file.path)
                 chain = next(s1.get_chains())
-                coords, seq = get_residue_data(chain)
-                s2 = get_structure(structure.path)
+             #   coords, seq = get_residue_data(chain)
+             #   s2 = get_structure(structure.path)
                 chain2 = next(s2.get_chains())
-                coords2, seq2 = get_residue_data(chain2)
-                alignment = tm_align(coords, coords2, seq, seq2)
+              #  coords2, seq2 = get_residue_data(chain2)
+             #   alignment = tm_align(coords, coords2, seq, seq2)
                 aligned_seq_coords1 = coords.dot(alignment.u.T) + alignment.t
                 self.per_motif_rmsd_vectors[args[0]][index] = lib.func.calculate_rmsd(aligned_seq_coords1, coords2)
             #self.per_motif_rmsd_vectors[args[0]][index] =lib.func.calculate_rmsd(pdb_coords_reference, pdb_coords) # (np.sqrt((pdb_coords_reference - pdb_coords) ** 2 /

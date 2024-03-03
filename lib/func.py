@@ -9,8 +9,6 @@ import Bio.SeqIO
 import pandas
 from sklearn.mixture import GaussianMixture
 import numpy as np
-import transformers
-from transformers import EsmTokenizer, EsmModel
 from Bio import SeqIO
 from sklearn.decomposition import PCA
 
