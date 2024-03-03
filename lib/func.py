@@ -17,8 +17,8 @@ from lib.const import grantham_distance_matrix_row_dict, grantham_distance_matri
 from scipy.cluster.hierarchy import dendrogram, linkage
 from lib.const import e_coli_k_type
 
-import matplotlib
-matplotlib.use('TkAgg')
+#import matplotlib
+#matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 def change_directory(directory: Path):
     """
