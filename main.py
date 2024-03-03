@@ -13,8 +13,9 @@ from Commands.Structure.Structure import StructureFactory
 from Commands.Structure.model import HomologyModel
 from Commands.repair import RepairStructures
 from Commands.fasta_parser import FastaData, ParseMapping, MappPDBToGenBankHits
+from Commands.similarity_metrics import SimilarityMetricBuilder
 from lib.const import AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, ConfigOptions, \
-    SupportedStructureFileTypes, StructureBuildMode
+    SupportedStructureFileTypes, StructureBuildMode, SimilarityDistance
 # from Commands.repair import RepairPDB
 import typer
 import logging
@@ -45,21 +46,30 @@ def find_characteristics(mode: StructureCharacteristicsMode =
     command = CharacteristicsFactory().build(mode, Path(os.path.abspath(binding_site_database)))
     command.run()
 
+
 @app.command()
-def protein_similarity():
-    command = SimilarityMetricBuilder()
+def protein_similarity(mode: SimilarityDistance = typer.Argument(..., help="Mode of how to calculate "
+                                                                           "pairwise-distances of structures"),
+                       distances_file_name: str = typer.Argument(...,
+                                                                 help="Distances file name to be saved as numpy file")):
+    """
+    This command is for calculating pairwise distances of structures from a dataset of structures.
+    """
+    command = SimilarityMetricBuilder().build(mode, distances_file_name)
     command.run()
 
 
 @app.command()
-def cluster_go_terms( uniprot_id_list: Path = typer.Option(...,)):
+def cluster_go_terms(uniprot_id_list: Path = typer.Option(..., )):
     command = ClusterGOTerms(uniprot_id_list)
     command.run()
+
 
 @app.command()
 def tm_score():
     command = FindCustomBindingSite("nothingyet")
     command.run()
+
 
 @app.command()
 def get_structures(mode: StructureBuildMode =
@@ -75,8 +85,9 @@ def get_structures(mode: StructureBuildMode =
     command = StructureFactory().build(mode, uniprot_id_list)
     command.run()
 
-#@app.command()
-#def homology_model(uniprot_id_list: Path = typer.Option(...,
+
+# @app.command()
+# def homology_model(uniprot_id_list: Path = typer.Option(...,
 #                                                          help="Path to UniProtID list to find structures for."),
 #                   target_sequence: Optional[Path] = typer.Option(None, help="For homology modeling")):
 #    HomologyModel(uniprot_id_list, target_sequence).run()
@@ -96,15 +107,14 @@ def analyze(mode: AnalysisMode = typer.Argument(..., help="Mode for analysis.", 
     homology structures made from AF2; STATS - provides stats on database provided such as number of crystal and
     homology structures and average values per uniProtID..
     """
-
-
-# command = Analyze(mode)
-# command.run()
+    command = Analyze(mode)
+    command.run()
 
 
 @app.command()
 def read_sequence_data(file_name: str = typer.Argument(..., help="Name of fasta file of interest."),
-                       gene_name: str = typer.Argument(...,help="Gene name to search for in GP file under region name"),
+                       gene_name: str = typer.Argument(...,
+                                                       help="Gene name to search for in GP file under region name"),
                        lower_bound: int = typer.Argument(..., help="lower bound for AA sequence size )temporary "
                                                                    "implementation needs tp be more robust"),
                        upper_bound: int = typer.Argument(...,
@@ -124,13 +134,13 @@ def parse_mapping(file_name: str = typer.Argument(..., help="Name of fasta file 
 def map_represntatives_pdb(mapping_json_file: str = typer.Argument(..., help="Name of fasta file of interest."),
                            cluster_representatives_tsv_file: str
                            = typer.Argument(..., help="Output fasta file path and name for output")):
-
     MappPDBToGenBankHits(mapping_json_file, cluster_representatives_tsv_file).run()
+
 
 @app.callback()
 def main(database: Path = typer.Argument(..., help="Path of database of interest for different modes."),
          number_of_threads: int = typer.Option(default=os.cpu_count(),
-                                             #  prompt="Specify the number of threads for this process?",
+                                               #  prompt="Specify the number of threads for this process?",
                                                help="Option specifying number of threads to use for this process. "
                                                     "Default is number of logical cores."),
          mode: SupportedStructureFileTypes = typer.Argument(SupportedStructureFileTypes.CIF,

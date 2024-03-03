@@ -19,6 +19,7 @@ LOGFILE = "log.txt"
 class AnalysisMode(Enum):
     PLDDT = "plddt"
     STATS = "stats"
+    CLUSTERS = "clusters"
 
 
 class ConfigOptions(Enum):

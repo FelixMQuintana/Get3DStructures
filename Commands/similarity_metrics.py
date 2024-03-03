@@ -70,16 +70,7 @@ class BackboneGeometry(SimilarityMethod):
         return distances
 
 
-class ClusterAnalysis:
 
-    def __init__(self, ground_truth, labels, metric: ClusterAnalysisType):
-        self.ground_truth = ground_truth
-        self.labels = labels
-        self.metric = metric
-
-    def run(self) -> None:
-        if self.metric == ClusterAnalysisType.RAND_INDEX:
-            print(rand_score(self.ground_truth, self.labels))
 
 
 supported_commands = {
