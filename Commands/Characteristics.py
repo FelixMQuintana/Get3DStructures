@@ -33,7 +33,7 @@ from lib.func import get_encoding, calculate_rmsd, calculate_grantham_distance
 from scipy.spatial.transform import Rotation
 import matplotlib
 # from matplotlib import pyplot as plt
-matplotlib.use('TkAgg')
+#matplotlib.use('TkAgg')
 # import transformers
 from lib.func import *
 from lib.const import e_coli_k_type
