@@ -10,7 +10,6 @@ from pathlib import Path
 import numpy
 
 from Commands.Structure import HomologyStructure, CrystalStructure, StructureFile
-from Commands.post_processing import PostProcessing, StructureResults
 
 from Commands.command import FactoryBuilder
 from lib.const import AnalysisMode, CountStatistics, SequenceLengthStatistics, Metrics, HomologyStructureStatistics, \
