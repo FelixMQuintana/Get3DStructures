@@ -36,6 +36,7 @@ def find_characteristics(mode: StructureCharacteristicsMode =
     """
     This command is for finding characteristics of proteins.
     """
+
     if mode == StructureCharacteristicsMode.AUTOSITE:
         auto_site_directory = typer.prompt(text="Autosite binaries directory?", default="~/ADFRsuite-1.0/bin/")
         with open(APP_DIRECTORY + "/config.json", "r") as json_config:
@@ -43,8 +44,15 @@ def find_characteristics(mode: StructureCharacteristicsMode =
             my_json[StructureCharacteristicsMode.AUTOSITE.value] = auto_site_directory
         with open(APP_DIRECTORY + "/config.json", "w") as json_config:
             json.dump(my_json, json_config)
-    command = CharacteristicsFactory().build(mode, Path(os.path.abspath(binding_site_database)))
-    command.run()
+        command = CharacteristicsFactory().build(mode, Path(os.path.abspath(binding_site_database)))
+        command.run()
+    elif mode == StructureCharacteristicsMode.FIND_BINDING_POCKETS:
+        start_region_of_interest = typer.prompt(text="What is the start region of interest in your MSAs?",type=int)
+        end_region_of_interest = typer.prompt(text="What is the end region of interest in your MSAs?",type=int)
+        command = CharacteristicsFactory().build(mode, Path(os.path.abspath(binding_site_database), start_region_of_interest,end_region_of_interest ))
+    else:
+        command = CharacteristicsFactory().build(mode, Path(os.path.abspath(binding_site_database)))
+        command.run()
 
 
 @app.command()

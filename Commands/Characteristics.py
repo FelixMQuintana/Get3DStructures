@@ -91,7 +91,6 @@ class FindPockets(Characteristics):
                                                        structure_file.path.name.split(".")[0])))
 
 
-
 class FixPDBFiles(Characteristics):
 
     def __init__(self, binding_site_database: Path):
@@ -135,47 +134,22 @@ class FixPDBFiles(Characteristics):
                   f"{working_dir}")
 
 
-
-
 # def command(self, protein_structure: ProteinStructures) -> None:
 #      with open("/mnt/ResearchLongTerm/FunSoCTrainingData/lineages.txt", "a") as e:
 #        e.write(protein_structure.id)
 #        [e.write(" " + item) for item in protein_structure.uniprotID.structural_data["organism"]["lineage"]]
 #        e.write("\n")
 
-class ClusterGOTerms(Command):
-
-    def __init__(self, uniprot_list: Path):
-        super().__init__()
-        self.collection = Collection(self.working_directory, UniProtAcessionFetcher())
-        self.protein_list: Path = uniprot_list
-
-    def run(self) -> None:
-        protein_dict = {}
-        for protein_structure in self.collection.protein_structure_results.values():
-            for term in protein_structure.uniprotID.structural_data['uniProtKBCrossReferences']:
-                if term['database'] == "GO":
-                    try:
-                        protein_dict[term['id']].append(protein_structure.uniprotID.id)
-                    except KeyError as ex:
-                        protein_dict[term['id']] = [protein_structure.uniprotID.id]
-
-        with open(self.protein_list, "w") as output_file:
-            output_file.write(str(protein_dict))
-
 
 class FindCustomBindingSite(Command):
 
-    def __init__(self, align_file):
+    def __init__(self, align_file, coverage_region):
         super().__init__()
         self.collection = Collection(self.working_directory, HomologyStructureFetcher())
         self.alignment = AlignIO.read(align_file, "fasta")
 
-    # def run2(self) -> None:
-    #    pdb_parser = PDB.PDBParser()
-    #    io = PDBIO()
-    #    for protein_structures in self.collection.protein_structure_results.values():
-    def calculate_coverage(self, rec, start, end):
+    @staticmethod
+    def calculate_coverage(rec, start, end):
         alignment_motif = rec.seq[start:end + 1]  # 194:206]
         length_motif = len(alignment_motif)
         invalid_count = 0
@@ -201,82 +175,30 @@ class FindCustomBindingSite(Command):
             return None
         return motif
 
-    #     for index, char in enumerate(alignment_motif):
-    #         if char == "-":
-    #             index
     def run(self) -> None:
         pdb_parser = PDB.PDBParser()
         io = PDBIO()
         accessions = strain_to_accession(Path("/home/felix/testing.json"), e_coli_k_type)
         for index, protein_structures in enumerate(self.collection.protein_structure_results.values()):
-            #  motifs_of_interest = [Seq.Seq("GXXGXGKST")]#, Seq.Seq("XXXXD")]
             record_of_interest = None
             for rec in self.alignment:
-                print(accessions[protein_structures.id][0].replace(" ", ""))
-                print(rec.id)
                 if rec.id == accessions[protein_structures.id][0].replace(" ", ""):
                     record_of_interest = rec
             motif = str(self.calculate_coverage(record_of_interest, 199, 209))
-            print(motif)
-            #  print(protein_structures.all_structures[0].fasta)
             stability_motif = re.search(motif, str(protein_structures.all_structures[0].fasta))
-            print(stability_motif)
             try:
                 stability_motif = list(range(stability_motif.start() + 1, stability_motif.end() + 1))
             except AttributeError as ex:
                 print(f'skipping because of {ex}')
                 continue
-            #     alignment_motif
-            # try:
-            #    print(protein_structures.all_structures[0].path)
-            #    stability_motif = re.search(r"Y[A-Za-z]{2}D", str(protein_structures.homology_structures[0].fasta))
-            #    binding_motif = re.search(r"G[A-Za-z]{2}G[A-Za-z]GKST",
-            #                              str(protein_structures.all_structures[0].fasta))
-            #    histine_pos = re.finditer(r"H", str(protein_structures.all_structures[0].fasta))
-            #    #   if 0 >len(stability_motif) < 2:
-            #    stability_motif = list(range(stability_motif.start() + 1, stability_motif.end() + 1))
-            #    # elif len(stability_motif) > 0:
-            #    #        stability_motif = list(range(stability_motif.start(), stability_motif.end()))
-            #
-            #    binding_motif = list(range(binding_motif.start() + 1, binding_motif.end() + 1))
-            #    match_motif = None
-            #    for match in histine_pos:
-            #        if 183 > match.end() > 175:
-            #            match_motif = match
-
-            #    histine_pos = list(range(match_motif.start() + 1, match_motif.end() + 1))
-            # except AttributeError as ex:
-            #    print(f"Skipping because of {ex}")
-            #    continue
-            # except IndexError as ex:
-            #    print(f"Indexing error because of {ex}")
-            #    continue
-            # stability_motif.extend(binding_motif)
-            # stability_motif.extend(histine_pos)
-            working_dir: Path = self.working_directory.joinpath(protein_structures.all_structures[0].id)
             pdb = pdb_parser.get_structure(protein_structures.all_structures[0].path.name,
                                            protein_structures.all_structures[0].path)
-            # pdb_cluster_rep = pdb_parser.get_structure(id ,self.binding_site_database.joinpath(id).joinpath(
-            #                                              structure_file.path.name.split(".")[0]).joinpath(structure_file.path.name.split(".")[0] + "_cl_001.pdb",
-            #                                          ))
-
             pdb_ids = [residue.id[1] for residue in pdb.get_residues()]
             for chain in pdb[0]:
                 [chain.detach_child((' ', id, ' ')) for id in pdb_ids if id not in stability_motif]
-            #       [chain.detach_child((' ', id, ' ')) for id in pdb_ids if id < 194 or id > 205]
-            # pdb_coords = np.array([residue.center_of_mass() for residue in pdb.get_residues()])
             io.set_structure(pdb)
             io.save(str(self.working_directory.joinpath(
                 protein_structures.all_structures[0].path.name + "_beta_sheet.pdb")))
-        # d_matrix = distance_matrix(pdb_coords, cluster_coords)
-
-        #  m = motifs.create(motifs_of_interest,alphabet="GAVLITSMCPFYWHKRDENQ")
-        #  for motif in m.search_instances(protein_structures.fasta):
-        #       print(motif)
-        # matches = re.finditer(r"")
-
-
-
 
 
 class CalculateSubstructureDistances(Characteristics):
@@ -287,66 +209,17 @@ class CalculateSubstructureDistances(Characteristics):
     def __init__(self, binding_site):
         super().__init__(binding_site)
         self.collection = Collection(self.working_directory, HomologyStructureFetcher())
-        # self.metric = distance_metric
+        self.metric = lib.func.granthem_distance_fixed
 
     def run(self) -> None:
         threads = []
         distances = np.zeros(shape=(len(self.collection.protein_structure_results.values()),
                                     len(self.collection.protein_structure_results.values())))
-
-        # self.tokenizer = EsmTokenizer.from_pretrained("facebook/esm2_t33_650M_UR50D")
-        # self.esm_model = EsmModel.from_pretrained("facebook/esm2_t33_650M_UR50D", torch_dtype="auto").to("cuda")
-        # self.collection2 = Collection(Path("/media/felix/Research/KpsData/KpsT/"), ExperimentalStructureFetcher())
-        self.metric = lib.func.granthem_distance_fixed
-        # self.metric = self.llm_embedding_distance
         distances = self.calculate_distances(distances)
-        #   for index, structures in \
-        #           tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())):
-        #        threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.do_it,
-        #                                     args=[self.collection.protein_structure_results.values()
-        #                                         , structures.all_structures[index], index]))
-        # structures = self.collection.protein_structure_results.popitem()[1]
-        # for index, structure in tqdm.tqdm(enumerate(structures.all_structures)):
-        # threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.do_it,
-        #                                 args=[self.collection.protein_structure_results.values(), structure, distances[index]]))
-        #     encoding = get_encoding([structure.fasta], self.tokenizer,self.esm_model)
-        #     CalculateSubstructureDistances.do_it(self.collection.protein_structure_results.values(), structure,
-        #                                          distances[index],
-        #                                          lib.func.calculate_grantham_distance, self.collection2.protein_structure_results,encoding)
-        #  CalculateSubstructureDistances.llm_embedding_distance)
-
-        #      for index, protein_structures_inner in enumerate(x):
-        #          pdb_parser = PDB.PDBParser()
-        #         pdb1 = pdb_parser.get_structure(protein_struct.path.name, protein_struct.path)
-        #         pdb_parser2 = PDB.PDBParser()
-        #         pdb2 = pdb_parser2.get_structure(protein_structures_inner.path.name, protein_structures_inner.path)
-        #         threads.append(threading.Thread(target=CalculateSubstructureDistances.calc_everything,
-        #                                        args=[pdb1, pdb2]))
-        # CalculateSubstructureDistances.calculate_vector(protein_struct, protein_structures_inner)
-        #          pdb_coords1 = np.array([atom.center_of_mass() for atom in pdb1.get_residues()])
-        #         pdb_coords2 = np.array([atom.center_of_mass() for atom in pdb2.get_residues()])
-        #        threads.append(threading.Thread(target=CalculateSubstructureDistances.calculate_distance,args=[pdb_coords1,pdb_coords2]))
-        # CalculateSubstructureDistances.calculate_vector(protein_struct, protein_structures_inner)
-        # self.calc_distance(protein_structures,protein_struct,distances,index)
-
-        #  threads.append(self.thread_pool.apply_async(CalculateSubstructureDistances.calc_distance,
-        #                                                 args=[x, protein_struct]))
-        #   for index, protein_structures_inner in enumerate(x):
-        # CalculateSubstructureDistances.calc_distance(protein_struct,protein_structures_inner)
-        #     CalculateSubstructureDistances.calc_distance(x, protein_struct)
-
-        #   [thread.start() for thread in threads]
-        #  [thread.join() for thread in threads]
         [thread.wait() for thread in threads]
-
-        print("Shit")
         np.save(
             file="//media/felix/ShortTerm/Research/KpsData/KpsT/pathotype_structures/grantham_only_alphafold_pathotype",
             arr=distances)
-
-    #     for index, structures in tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())):
-    # $         for structure in structures.all_structures:
-    #            structure.id
 
     def calculate_distances(self, distances):
         for index, structures in tqdm.tqdm(enumerate(self.collection.protein_structure_results.values())):
@@ -447,16 +320,11 @@ class CalculateSubstructureDistances(Characteristics):
     #   return np.sum(1 / (0.3 * np.cosh(calculate_rmsd(coords1, coords2))) * l1_norm)
 
 
-
 supported_commands = {
     StructureCharacteristicsMode.AUTOSITE: FindPockets,
-    StructureCharacteristicsMode.BUILD_MOTIFS: BuildMotifStructures,
     StructureCharacteristicsMode.FIND_BINDING_POCKETS: FindCustomBindingSite,
-    StructureCharacteristicsMode.CHECK_MOTIF_QUALITY: CheckBindingSiteQuality,
     StructureCharacteristicsMode.CALCULATE_RMSD: CalculateSubstructureDistances,
     StructureCharacteristicsMode.TRIM_PDB: FixPDBFiles,
-    StructureCharacteristicsMode.GET_LINEAGE: GetLineage,
-    StructureCharacteristicsMode.CREATE_COMBINATORICS: CreateCombinatorics
 }
 
 
@@ -466,14 +334,3 @@ class CharacteristicsFactory(FactoryBuilder):
     def build(mode: StructureCharacteristicsMode, *args, **kwargs):
         return supported_commands[mode](*args, **kwargs)
 
-    #   threads: List = [
-    #        [self.thread_pool.apply_async(self.mode, [structures, structure_result.id])
-    #         for structures in structure_result.all_structures]
-    #        for structure_result in self._structure_results]
-    #     [[thread.wait() for thread in thread_list] for thread_list in threads]
-    #    plt.hist(self._correct_state )
-    #    plt.title("Binding Site Residues Correctly Predicted Dist")
-    #    plt.ylabel("Count")
-    #    plt.xlabel("Percent Correct")
-    #    plt.savefig(self.working_directory.joinpath("Correct_Binding_Sites.tif"))
-    #    plt.close()
