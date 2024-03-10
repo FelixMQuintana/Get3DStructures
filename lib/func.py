@@ -9,17 +9,20 @@ import Bio.SeqIO
 import pandas
 from sklearn.mixture import GaussianMixture
 import numpy as np
-from Bio import SeqIO
+from Bio import SeqIO, PDB
 from sklearn.decomposition import PCA
 
 from dataStructure.collections import Collection, HomologyStructureFetcher
-from lib.const import grantham_distance_matrix_row_dict, grantham_distance_matrix
+from lib.const import grantham_distance_matrix_row_dict, grantham_distance_matrix, CoordinateType, \
+    coordinate_type_conversion_dict
 from scipy.cluster.hierarchy import dendrogram, linkage
 from lib.const import e_coli_k_type
 
-#import matplotlib
-#matplotlib.use('TkAgg')
+# import matplotlib
+# matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
+
+
 def change_directory(directory: Path):
     """
 
@@ -193,6 +196,8 @@ def granthem_distance(sequence1, sequence2, ):
             physiochemical_value = grantham_distance_matrix[row][column]
             grantham_similarity[index2][index] = physiochemical_value
     return np.sum(grantham_similarity)
+
+
 def granthem_distance_fixed(sequence1, sequence2, ):
     grantham_similarity = np.zeros(shape=(len(sequence1)))
     for index2 in range(len(sequence1)):
@@ -201,6 +206,7 @@ def granthem_distance_fixed(sequence1, sequence2, ):
         physiochemical_value = grantham_distance_matrix[row][column]
         grantham_similarity[index2] = physiochemical_value
     return np.sum(grantham_similarity)
+
 
 def grantham_distance_backbone(sequence1, sequence2, coords1, coords2):
     """
@@ -314,18 +320,19 @@ def strain_to_accession(mapping_json_file: Path, strains: dict) -> dict:
     for strain in strains.keys():
         for accession, strain_id in json_object.items():
             if strain_id == strain:
-                accessions[accession] = (strain,strains[strain].value)
+                accessions[accession] = (strain, strains[strain].value)
                 # accessions.append(accession)
                 break
     return accessions
 
-#for index, item in enumerate(self.collection.protein_structure_results.values()):
+
+# for index, item in enumerate(self.collection.protein_structure_results.values()):
 #    for structure in item.all_structures:
 #         structure_cluster_results[structure.id]=dendo["color_list"][index]
 
 
 def accession_representative_fetcher(accession_ids, mapping_file):
-    csv = pandas.read_csv(mapping_file,sep="\t",header=None)
+    csv = pandas.read_csv(mapping_file, sep="\t", header=None)
     accessions_mapping = {}
     for accession in accession_ids.keys():
         representative = csv[csv[1] == accession][0]
@@ -343,53 +350,92 @@ def accession_representative_fetcher(accession_ids, mapping_file):
 def map_clustering(accessions_mapping, collection, dendogram):
     for index, structures in enumerate(collection.protein_structure_results.values()):
         for structure in structures.all_structures:
-#        #print(structure.id.replace("WP","WP_") +".1")
-            if accessions_mapping.get(structure.id.replace("WP","WP_") +".1") is not None:
+            #        #print(structure.id.replace("WP","WP_") +".1")
+            if accessions_mapping.get(structure.id.replace("WP", "WP_") + ".1") is not None:
                 accessions_mapping[structure.id.replace("WP", "WP_") + ".1"].append(dendogram["color_list"][index])
     return accessions_mapping
-def temp_fix_load(data_path,working_path):
+
+
+def temp_fix_load(data_path, working_path):
     data = np.load(data_path)
     collection = Collection(working_path, HomologyStructureFetcher())
-    labels= cluster_gmm(data,4)
-    labels_fixed = [[],[],[],[]]
+    labels = cluster_gmm(data, 4)
+    labels_fixed = [[], [], [], []]
     for index, item in enumerate(collection.protein_structure_results.values()):
         for structure in item.all_structures:
             labels_fixed[labels[index]].append(structure.id)
     return labels_fixed
 
+
 def build_dendrogram(data):
-    return dendrogram(linkage(data,method="ward"))
+    return dendrogram(linkage(data, method="ward"))
+
 
 def get_dendrogram(collection: Collection):
-    accessions = strain_to_accession(Path("/home/felix/testing.json"),e_coli_k_type)
+    accessions = strain_to_accession(Path("/home/felix/testing.json"), e_coli_k_type)
     accessions = accession_representative_fetcher(accessions, "/home/felix/kpsT_cluster_cluster.tsv", )
-    data = np.load("/media/felix/ShortTerm/Research/KpsData/KpsT/pathotype_structures/geometry_only_alphafold_pathotype.npy")
+    data = np.load(
+        "/media/felix/ShortTerm/Research/KpsData/KpsT/pathotype_structures/geometry_only_alphafold_pathotype.npy")
     labels = []
     for structs in collection.protein_structure_results.values():
         for struct in structs.all_structures:
-            labels.append(struct.id +" "+ e_coli_k_type[struct.id].value[0])
-    dendo = dendrogram(linkage(data),labels=labels, color_threshold=6, above_threshold_color='grey', orientation="left")
+            labels.append(struct.id + " " + e_coli_k_type[struct.id].value[0])
+    dendo = dendrogram(linkage(data), labels=labels, color_threshold=6, above_threshold_color='grey',
+                       orientation="left")
     plt.axhline(y=6, c='grey', lw=1, linestyle='dashed')
-    return map_clustering(accessions, collection,dendo)
+    return map_clustering(accessions, collection, dendo)
 
 
 def create_strain_fastas(accessions, working_dir: Path):
-    for record in Bio.SeqIO.parse("/home/felix/Research/tmpKps/kpsT_all_seqs.fasta","fasta"):
+    for record in Bio.SeqIO.parse("/home/felix/Research/tmpKps/kpsT_all_seqs.fasta", "fasta"):
         if record.id in accessions.keys():
             try:
                 os.mkdir(working_dir.joinpath(record.id))
             except:
                 continue
-            Bio.SeqIO.write(record, working_dir.joinpath(record.id).joinpath(accessions[record.id][0]+".fasta"),"fasta")
-            #working_dir.joinpath(record.id).joinpath(accessions[recor)
+            Bio.SeqIO.write(record, working_dir.joinpath(record.id).joinpath(accessions[record.id][0] + ".fasta"),
+                            "fasta")
+            # working_dir.joinpath(record.id).joinpath(accessions[recor)
+
 
 def create_pathotype_fasta(accessions, working_dir: Path):
     records_to_save = []
-    for record in Bio.SeqIO.parse("/home/felix/Research/tmpKps/kpsT_all_seqs.fasta","fasta"):
+    for record in Bio.SeqIO.parse("/home/felix/Research/tmpKps/kpsT_all_seqs.fasta", "fasta"):
         if record.id in accessions.keys():
             record.description = ""
-            #record.description = accessions[record.id][0] + " " + accessions[record.id][1][0]
+            # record.description = accessions[record.id][0] + " " + accessions[record.id][1][0]
             record.id = accessions[record.id][0] + " " + accessions[record.id][1][0]
             records_to_save.append(record)
 
-    Bio.SeqIO.write(records_to_save, working_dir.joinpath("kpsT_pathotype_sequences.fasta"),"fasta")
+    Bio.SeqIO.write(records_to_save, working_dir.joinpath("kpsT_pathotype_sequences.fasta"), "fasta")
+
+
+def get_coords(structure, coord_types: CoordinateType) -> np.array:  # ["N", "CA", "C", "O"]
+    coord_types = coordinate_type_conversion_dict[CoordinateType]
+    pdb_parser = PDB.PDBParser()
+    protein_b = pdb_parser.get_structure(structure.id, structure.path)
+    coords_protein_b = []
+    for x in protein_b.get_atoms():
+        if x.name in coord_types:
+            coords_protein_b.append(list(x.coord))
+    return np.array(coords_protein_b)
+
+
+def clean_fasta(fasta_file,size, output_file_name):
+    records = SeqIO.parse(open(fasta_file), "fasta")
+    recs_to_save = []
+    for rec in records:
+        if size * .9 < len(rec.seq) < size * 1.1:
+            recs_to_save.append(rec)
+    file = open(output_file_name, "w")
+    SeqIO.write(recs_to_save, file, "fasta")
+    file.close()
+
+def extract_accession_uniprot_json(file_name, out_file_name):
+    json_object  = json.load(open(file_name))
+    accession_list = open(out_file_name,"w")
+    for entry in json_object["results"]:
+        print(entry)
+        accession_list.write(entry["primaryAccession"]+"\n")
+    accession_list.close()
+

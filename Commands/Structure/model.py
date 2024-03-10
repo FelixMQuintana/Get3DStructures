@@ -52,14 +52,16 @@ class HomologyModel(Command):
                 logging.warning("Had exception! %s" % ex)
                 continue
             if len(protein_structures.all_structures) < 1:
-                p.append(pool.apply_async(HomologyModel.align_model, args=[protein_structures.fasta_file, templates[0]]))
+                p.append(
+                    pool.apply_async(HomologyModel.align_model, args=[protein_structures.fasta_file, templates[0]]))
 
-            #self.align_model(protein_structures, templates[0], pool)
+            # self.align_model(protein_structures, templates[0], pool)
         #    self.align_model(protein_structures, templates[0])
         # self.align_model(protein_structures,templates[0])
         [process.wait() for process in p]
+
     @staticmethod
-    def align_model( fasta_file: UniProtIDFastaFile, template):
+    def align_model(fasta_file: UniProtIDFastaFile, template):
         HomologyModel._align_canidate(fasta_file, template)
         HomologyModel._model_candidate(fasta_file, template)
 
@@ -130,10 +132,8 @@ class HomologyModel(Command):
         key = 'DOPE score'
         ok_models.sort(key=lambda a: a[key])
         m = ok_models[0]
-        os.system("mv %s %s " %(m['name'], fasta_file.path.parent))
+        os.system("mv %s %s " % (m['name'], fasta_file.path.parent))
         print("Top model %s with score %s" % (m['name'], m[key]))
-
-
 
     def profile_for_canidates(self, protein_structures: ProteinStructures, sdb, env) -> Path:
         #        records = SeqIO.parse(self.target , "fasta")
@@ -158,7 +158,8 @@ class HomologyModel(Command):
 
         return Path()
 
+
 supported_commands = {
 
-  #  StructureBuildMode.HomologyModel: HomologyModel
+    #  StructureBuildMode.HomologyModel: HomologyModel
 }

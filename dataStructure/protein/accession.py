@@ -25,7 +25,7 @@ class UniProtIDFastaFile(StructureFile):
 
     @property
     def id(self) -> str:
-        return self.path.name
+        return self.path.parent.name
 
     @property
     def fasta(self) -> str:

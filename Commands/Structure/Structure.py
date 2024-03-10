@@ -6,7 +6,7 @@ import threading
 from pathlib import Path
 from typing import List
 
-#import modeller
+# import modeller
 import typer
 import textwrap
 from Commands.command import Command, FactoryBuilder
@@ -17,23 +17,27 @@ from dataStructure.protein.protein import ProteinStructures
 from dataStructure.protein.structure import HomologyStructure
 from lib.const import COLABFOLD_WORKING_DIRECTORY, ColabFoldOptions, \
     ACCESSIONS_LOOKUP_TABLE, COLABFOLDResponses, ALPHA_FOLD_STRUCTURE_EXT, ALPHA_FOLD_PAE_EXT, APP_DIRECTORY, \
-    AllowedExt, StructureBuildMode
+    AllowedExt, StructureBuildMode, FoldingEnvironment
 from query import AlphaFoldQuery, UNIPROT_RESPONSE, PDBQuery, UniProtIDQuery, FastaQuery
 import dask.dataframe as df
-#from modeller import *
-#from modeller.automodel import *
+
+
+# from modeller import *
+# from modeller.automodel import *
 
 
 def generate_alpha_fold_structures(fasta_path: Path):
-    os.system(COLABFOLD_WORKING_DIRECTORY + ColabFoldOptions.USE_GPU.value + ColabFoldOptions.MSA_MODE.value %
-              COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value +  # ColabFoldOptions.AMBER.value +
+    os.system("docker run  --rm --runtime=nvidia --gpus \"device=0\"   -v /local/path/to/cache:/cache:rw   -v $(pwd):/work:rw   "
+              "ghcr.io/sokrypton/colabfold:1.5.5-cuda12.2.2 " + "colabfold_batch" +
+              ColabFoldOptions.USE_GPU.value + ColabFoldOptions.MSA_MODE.value %
+              COLABFOLDResponses.MMSEQS2_UNIREF_ENV.value + " " +  ColabFoldOptions.AMBER.value + " " +
               ColabFoldOptions.NUM_ENSEMBLE.value % "3" + ColabFoldOptions.PAIR_MODE.value %
-              COLABFOLDResponses.UNPAIRED_PAIRED.value + fasta_path.as_posix() + " " + fasta_path.parent.as_posix())
+              COLABFOLDResponses.UNPAIRED_PAIRED.value + "/work/"+ fasta_path.name + " /work/")
 
 
 class GetStructureData(Command, abc.ABC):
 
-    def __init__(self, uniprot_list: Path):
+    def __init__(self, uniprot_list: Path, *args):
         super().__init__()
         self._uniprot_list = self.get_list(uniprot_list)
         logging.debug("Building database directory")
@@ -110,20 +114,25 @@ class FindAlphaFoldStructures(GetStructureData):
 
 class ComputeAlphaFoldStructures(GetStructureData):
 
-    def __init__(self, uniprot_list: Path):
+    def __init__(self, uniprot_list: Path, compute_mode: FoldingEnvironment):
         super().__init__(uniprot_list)
         self.collection = Collection(self.working_directory, HomologyStructureFetcher(),
-                                     UniProtFastaFetcher())
+                                     UniProtAcessionFetcher(), UniProtFastaFetcher())
+        self.compute_mode = compute_mode
 
     def command(self) -> None:
-        [self.compute_structures(protein_structures) for protein_structures in
-         self.collection.protein_structure_results.values() if
-         not self.working_directory.joinpath(protein_structures.id.split('.')[0]).joinpath("log.txt").exists()]
+     #   for protein_struct in self.collection.protein_structure_results.values():
+       #     print(protein_struct.all_structures)
+        [self.compute_structures(protein_structures, self.compute_mode) for protein_structures in
+         self.collection.protein_structure_results.values()
+         if not self.working_directory.joinpath(protein_structures.id.split('.')[0]).joinpath("log.txt").exists()]
 
     @staticmethod
-    def compute_structures(protein_structures: ProteinStructures):
-        if len(protein_structures.all_structures) == 0:  # and protein_structures.fasta:
+    def compute_structures(protein_structures: ProteinStructures, compute_mode):
+        if len(protein_structures.all_structures) == 0 and compute_mode == compute_mode.DOCKER:  # and protein_structures.fasta:
+            #      print(protein_structures.all_structures)
             typer.secho(f"Generating AlphaFold Structures for UniProtID {protein_structures.id}", fg=typer.colors.BLUE)
+            os.chdir(protein_structures.fasta_file.path.parent)
             generate_alpha_fold_structures(protein_structures.fasta_file.path)
 
 
@@ -163,9 +172,6 @@ def create_pir_file(fasta_file: UniProtIDFastaFile):
         out_handle.write("sequence::1::" + str(len(fasta_file.fasta)) + ":::::\n")
 
         out_handle.write(textwrap.fill(fasta_file.fasta + "*", width=60))
-
-
-
 
 
 supported_commands = {

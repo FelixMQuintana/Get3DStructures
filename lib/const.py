@@ -54,9 +54,11 @@ class SimilarityDistance(Enum):
     BACKBONE = "backbone"
     LLM = "llm"
 
+
 class ClusterAnalysisType(Enum):
     RAND_INDEX = "rand-index"
     DUNN_INDEX = "dunn-index"
+
 
 class MotifSearchMode(Enum):
     CLUSTER = "cluster"
@@ -82,7 +84,7 @@ class SupportedStructureFileTypes(Enum):
 
 class SupportedFileTypeRegex(Enum):
     EXPERIMENTAL_STRUCTURE = "^[!AF,!sp]*.pdb"
-    HOMOLOGY_STRUCTURE = "*ptm_model*.pdb"
+    HOMOLOGY_STRUCTURE = "*model_v4.pdb"
     CSV_FILE = "*.csv"
     FASTA_FILE = '*.fasta'
     JSON_FILE = '*.json'
@@ -118,14 +120,36 @@ class FunSoCs(Enum):
     DISABLE_ORGAN = "DisableOrgan"
 
 
+class CalculateOptions(Enum):
+    SIMILARITY_DISTANCE = "sim-dist"
+    CLUSTER = "cluster"
+
+
 class Metrics:
-    UNIPROTID_COUNT = "uniprotID_count"
+    UNIPROT_ID_COUNT = "uniprotID_count"
     CRYSTAL_STRUCTURES = "crystal_structures"
     HOMOLOGY_STRUCTURES = "homology_structures"
 
 
+class CoordinateType(Enum):
+    BACKBONE = "backbone"
+    C_ALPHA = "c-alpha"
+
+
+coordinate_type_conversion_dict = {
+    CoordinateType.BACKBONE: ["N", "CA", "C", "O"],
+    CoordinateType.C_ALPHA: ["CA"]
+
+}
+
+
 class Statistics(Enum):
     """"""
+
+
+class FoldingEnvironment(Enum):
+    LOCAL = "local"
+    DOCKER = "docker"
 
 
 class CountStatistics(Statistics):
@@ -441,6 +465,7 @@ grantham_distance_matrix = np.array([
          0.69, 1.00])  # TRP
 ])
 
+
 class ktypes(Enum):
     k_plus = "k+",
     k1 = "k1",
@@ -448,8 +473,9 @@ class ktypes(Enum):
     k100 = "k100",
     k52 = "k52",
     k5 = "k5",
-    k14="k14"
-    k15="k15"
+    k14 = "k14"
+    k15 = "k15"
+
 
 e_coli_k_type = {
     "MNCRE44": ktypes.k_plus,
@@ -459,7 +485,7 @@ e_coli_k_type = {
     "IAI39": ktypes.k1,
     "IHE3034": ktypes.k_plus,
     "APEC IMT5155": ktypes.k1,
-    "MCJCHV-1":ktypes.k_plus,
+    "MCJCHV-1": ktypes.k_plus,
     "NC101": ktypes.k1,
     "NMEC O18": ktypes.k1,
     "O18": ktypes.k1,
@@ -473,25 +499,25 @@ e_coli_k_type = {
     "UTI89": ktypes.k1,
     "VR50": ktypes.k1,
     "ST648": ktypes.k_plus,
-    "Ecol_743":ktypes.k_plus,
+    "Ecol_743": ktypes.k_plus,
     "536": ktypes.k15,
-    "Ecol_448":ktypes.k_plus,
-    "EC958":ktypes.k100,
-    "Ecol_745":ktypes.k_plus,
-    "MVAST0167":ktypes.k100,
-    "NRG 857C":ktypes.k_plus,
-    "LF82":ktypes.k_plus,
-    "SE15":ktypes.k_plus,
-    "JJ1887":ktypes.k14,
+    "Ecol_448": ktypes.k_plus,
+    "EC958": ktypes.k100,
+    "Ecol_745": ktypes.k_plus,
+    "MVAST0167": ktypes.k100,
+    "NRG 857C": ktypes.k_plus,
+    "LF82": ktypes.k_plus,
+    "SE15": ktypes.k_plus,
+    "JJ1887": ktypes.k14,
     "ED1a": ktypes.k_plus,
-    "REL606":ktypes.k_plus,
-    "K-15KW01":ktypes.k_plus,
-    "042":ktypes.k_plus,
-    "NA114":ktypes.k_plus,
-    "ZH193":ktypes.k5,
-    "ZH063":ktypes.k5,
+    "REL606": ktypes.k_plus,
+    "K-15KW01": ktypes.k_plus,
+    "042": ktypes.k_plus,
+    "NA114": ktypes.k_plus,
+    "ZH193": ktypes.k5,
+    "ZH063": ktypes.k5,
     "SaT040": ktypes.k5,
-    "CD306":ktypes.k5,
-    "ABU 83972":ktypes.k5,
+    "CD306": ktypes.k5,
+    "ABU 83972": ktypes.k5,
     "JJ2434": ktypes.k5
 }

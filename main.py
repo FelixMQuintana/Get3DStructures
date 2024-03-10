@@ -8,14 +8,13 @@ from typing import Optional
 from pathlib import Path
 
 # from Commands.Analyze import Analyze
-from Commands.Characteristics import CharacteristicsFactory, ClusterGOTerms, FindCustomBindingSite
+from Commands.calculate.Characteristics import CharacteristicsFactory, FindCustomBindingSite
 from Commands.Structure.Structure import StructureFactory
-from Commands.Structure.model import HomologyModel
 from Commands.repair import RepairStructures
 from Commands.fasta_parser import FastaData, ParseMapping, MappPDBToGenBankHits
 from Commands.similarity_metrics import SimilarityMetricBuilder
 from lib.const import AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, ConfigOptions, \
-    SupportedStructureFileTypes, StructureBuildMode, SimilarityDistance
+    SupportedStructureFileTypes, StructureBuildMode, SimilarityDistance, CalculateOptions, FoldingEnvironment
 # from Commands.repair import RepairPDB
 import typer
 import logging
@@ -54,6 +53,14 @@ def find_characteristics(mode: StructureCharacteristicsMode =
         command = CharacteristicsFactory().build(mode, Path(os.path.abspath(binding_site_database)))
         command.run()
 
+@app.command()
+def calculate(mode: CalculateOptions = typer.Argument(..., help=f"Type of calculation to be performed. Please choose "
+                                                                f"from the following options {CalculateOptions.CLUSTER} "
+                                                                f"{CalculateOptions.SIMILARITY_DISTANCE}"),
+
+              ):
+    pass
+
 
 @app.command()
 def protein_similarity(mode: SimilarityDistance = typer.Argument(..., help="Mode of how to calculate "
@@ -67,30 +74,20 @@ def protein_similarity(mode: SimilarityDistance = typer.Argument(..., help="Mode
     command.run()
 
 
-@app.command()
-def cluster_go_terms(uniprot_id_list: Path = typer.Option(..., )):
-    command = ClusterGOTerms(uniprot_id_list)
-    command.run()
-
-
-@app.command()
-def tm_score():
-    command = FindCustomBindingSite("nothingyet")
-    command.run()
-
 
 @app.command()
 def get_structures(mode: StructureBuildMode =
                    typer.Argument(..., help="Mode for getting structures")
                    , uniprot_id_list: Path = typer.Option(...,
                                                           help="Path to UniProtID list to find structures for."),
-                   sequence_db: Optional[Path] = None):
+                   sequence_db: Optional[Path] = None,
+                   compute_environment: FoldingEnvironment = None):
     """
     This command is to populate structures based on provided uniprotID(s). Structures are pulled from the AF2 database,
     PDB databank. If no structure is available, ColabFold will run locally to generate the structure.
     """
 
-    command = StructureFactory().build(mode, uniprot_id_list)
+    command = StructureFactory().build(mode, uniprot_id_list, compute_environment)
     command.run()
 
 

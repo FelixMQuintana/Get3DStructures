@@ -11,7 +11,7 @@ import numpy
 
 from Commands.Structure import HomologyStructure, CrystalStructure, StructureFile
 
-from Commands.command import FactoryBuilder
+from Commands.command import FactoryBuilder, Command
 from lib.const import AnalysisMode, CountStatistics, SequenceLengthStatistics, Metrics, HomologyStructureStatistics, \
     ClusterAnalysisType
 from lib.func import change_directory
@@ -229,6 +229,13 @@ class Analyze:
                     elif isinstance(struct, CrystalStructure):
                         uniprot_id.crystal_structures.remove(struct)
                     self._structure_results.append(uniprot_id)
+
+
+class ClusterGeneration(Command):
+
+
+    def __init__(self, data_file_path, ):
+        pass
 
 
 class ClusterAnalysis:
