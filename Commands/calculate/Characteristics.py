@@ -11,11 +11,11 @@ import lib.func
 from Commands.command import Command, FactoryBuilder
 import tqdm
 from dataStructure.collections import ExperimentalStructureFetcher, \
-    UniProtAcessionFetcher
+    UniProtAcessionFetcher, Collection, HomologyStructureFetcher
 from dataStructure.protein.protein import ProteinStructures
-from dataStructure.protein.structure import StructureFile, HomologyStructure
+from dataStructure.protein.structure.structure import StructureFile, HomologyStructure
 from lib.const import StructureCharacteristicsMode, MotifSearchMode, MotifRefinements, AllowedExt, AminoAcids
-from lib.func import get_encoding, calculate_rmsd, calculate_grantham_distance
+#from lib.func import get_encoding, calculate_rmsd, calculate_grantham_distance
 # from tmtools import tm_align
 # from tmtools.io import get_structure, get_residue_data
 from scipy.spatial.transform import Rotation
@@ -140,12 +140,23 @@ class FixPDBFiles(Characteristics):
 #        [e.write(" " + item) for item in protein_structure.uniprotID.structural_data["organism"]["lineage"]]
 #        e.write("\n")
 
+class GetSecondaryStructure(Command):
+
+    def __init__(self):
+        super().__init__()
+        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
+
+    def run(self) -> None:
+        for protein_structures in self.collection.protein_structure_results.values():
+            for protein in protein_structures:
+                pass
+
 
 class FindCustomBindingSite(Command):
 
     def __init__(self, align_file, coverage_region):
         super().__init__()
-        self.collection = Collection(self.working_directory, HomologyStructureFetcher())
+        self.collection = Collection(self.working_directory, ExperimentalStructureFetcher())
         self.alignment = AlignIO.read(align_file, "fasta")
 
     @staticmethod
@@ -184,7 +195,7 @@ class FindCustomBindingSite(Command):
             for rec in self.alignment:
                 if rec.id == accessions[protein_structures.id][0].replace(" ", ""):
                     record_of_interest = rec
-            motif = str(self.calculate_coverage(record_of_interest, 199, 209))
+            motif = str(self.calculate_coverage(record_of_interest, 1, 34))
             stability_motif = re.search(motif, str(protein_structures.all_structures[0].fasta))
             try:
                 stability_motif = list(range(stability_motif.start() + 1, stability_motif.end() + 1))

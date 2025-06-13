@@ -1,7 +1,8 @@
 from typing import List
 
 from dataStructure.protein.accession import UniProtAcessionFile, UniProtIDFastaFile
-from dataStructure.protein.structure import CrystalStructure, HomologyStructure, StructureFile
+from dataStructure.protein.structure.structure import CrystalStructure, HomologyStructure, StructureFile, MeshFile
+from lib.func import Metrics
 
 
 class ProteinStructures:
@@ -10,6 +11,7 @@ class ProteinStructures:
         self._crystal_structures: List[CrystalStructure] = []
         self._homology_structures: List[HomologyStructure] = []
         self._id = None
+        self.mesh = None
         for structure_file in structure_files:
             if isinstance(structure_file, CrystalStructure):
                 self._crystal_structures.append(structure_file)
@@ -19,8 +21,23 @@ class ProteinStructures:
                 self._accession: UniProtAcessionFile = structure_file
             elif isinstance(structure_file, UniProtIDFastaFile):
                 self._uniprot_fasta: UniProtIDFastaFile = structure_file
+            elif isinstance(structure_file, MeshFile):
+                self.mesh: MeshFile = structure_file
             if self._id is None:
                 self._id = structure_file.id
+        self._annotation = None
+
+    def add_metric(self, metric: Metrics):
+        self._annotation = metric.add_metric(self.id)
+
+    @property
+    def all_files(self) -> List[StructureFile]:
+        structs = [self.fasta_file, self.mesh, self._accession]
+        structs.extend(self.homology_structures)
+        structs.extend(self.crystal_structures)
+        cleaned_data = [x for x in structs if x is not None]
+
+        return cleaned_data
 
     @property
     def id(self) -> str:
@@ -77,3 +94,7 @@ class ProteinStructures:
 
         """
         return self._uniprot_fasta
+
+    @property
+    def annotations(self) -> List:
+        return self._annotation

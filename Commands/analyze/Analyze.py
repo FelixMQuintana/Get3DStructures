@@ -1,5 +1,6 @@
 import json
 import logging
+from abc import ABC
 from typing import List, Optional, Dict
 import statistics
 
@@ -8,12 +9,14 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 import numpy
+from sklearn.metrics import rand_score
 
 from Commands.Structure import HomologyStructure, CrystalStructure, StructureFile
 
 from Commands.command import FactoryBuilder, Command
+from dataStructure.collections import Collection
 from lib.const import AnalysisMode, CountStatistics, SequenceLengthStatistics, Metrics, HomologyStructureStatistics, \
-    ClusterAnalysisType
+    ClusterAnalysisType, METRIC
 from lib.func import change_directory
 
 # import pandas as pd
@@ -28,8 +31,29 @@ def make_piddt_plot(alpha_fold_structure: HomologyStructure):
     plt.savefig(alpha_fold_structure.path.with_suffix(".TIF"))
     plt.close()
 
+class Analyze(Command, ABC):
 
-class Analyze:
+
+    def add_metrics(self, * metrics: METRIC):
+        for metric in metrics:
+            parse_collection(self.collection, metric)
+
+    @staticmethod
+    def parse_collection(collection: Collection, metric):
+        for structure in collection.protein_structure_results.values():
+            structure.add_metric(metric, collection.name)
+
+
+
+
+
+
+
+
+
+
+
+class AnalyzeStrcutrues:
 
     def __init__(self, mode: AnalysisMode) -> None:
         super().__init__(specific_file=specific_file)
@@ -249,11 +273,12 @@ class ClusterAnalysis:
         if self.metric == ClusterAnalysisType.RAND_INDEX:
             print(rand_score(self.ground_truth, self.labels))
         elif self.metric == ClusterAnalysisType.DUNN_INDEX:
+            pass
 
 
 
 supported_commands = {
-    AnalysisMode.CLUSTERS: GranthamDistance,
+    AnalysisMode.CLUSTERS: ClusterAnalysis,
 }
 
 

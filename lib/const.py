@@ -1,12 +1,11 @@
 import abc
 import dataclasses
-import enum
-import logging
+
 from enum import Enum
 
-import numpy
 import numpy as np
 import typer
+
 
 ACCESSIONS_LOOKUP_TABLE = "accession_ids.csv"
 APP_NAME = "StructCompare"
@@ -16,10 +15,11 @@ COLABFOLD_WORKING_DIRECTORY = "/home/felix/Data/colabfold_batch/colabfold-conda/
 LOGFILE = "log.txt"
 
 
-class AnalysisMode(Enum):
+class METRIC(Enum):
+    PDB_ID = "PDB ID"
+    ACC_ID = "Accession ID"
     PLDDT = "plddt"
-    STATS = "stats"
-    CLUSTERS = "clusters"
+    Annotations = "Annotations"
 
 
 class ConfigOptions(Enum):
@@ -46,13 +46,16 @@ class StructureBuildMode(Enum):
     PDB_STRUCTURES = "pdb_structures"
     ALPHAFOLD_STRUCTURES = "alphafold_structures"
     COMPUTE_ALPHA_STRUCTURES = "compute_alphafold_structures"
-    HomologyModel = "homology_model"
+    HOMOLOGY_MODEL = "homology_model"
 
 
 class SimilarityDistance(Enum):
     GRANTHAM = "grantham"
-    BACKBONE = "backbone"
+    BACKBONE = "geometric_backbone"
     LLM = "llm"
+    BLOSUM62 = "blosum62"
+    PHAT = "phat"
+    FULL = "full"
 
 
 class ClusterAnalysisType(Enum):
@@ -83,11 +86,14 @@ class SupportedStructureFileTypes(Enum):
 
 
 class SupportedFileTypeRegex(Enum):
-    EXPERIMENTAL_STRUCTURE = "^[!AF,!sp]*.pdb"
-    HOMOLOGY_STRUCTURE = "*model_v4.pdb"
+  #  EXPERIMENTAL_STRUCTURE = "*.pdb"
+    EXPERIMENTAL_STRUCTURE = "[!AF,!sp]*.pdb"
+    HOMOLOGY_STRUCTURE = "*.pdb"
     CSV_FILE = "*.csv"
     FASTA_FILE = '*.fasta'
     JSON_FILE = '*.json'
+    PLY_FILE = "*.ply"
+    ATOM_STRUCTURE = "*.pdb"
 
 
 class ColabFoldOptions(Enum):
@@ -123,7 +129,16 @@ class FunSoCs(Enum):
 class CalculateOptions(Enum):
     SIMILARITY_DISTANCE = "sim-dist"
     CLUSTER = "cluster"
-
+    GET_REP = "get-rep"
+    GET_MESH = "get-mesh"
+    ALIGN_DATA = "align-data"
+    REASSIGN_CONTACTS = "reassign-contacts"
+    MOLECULAR_PARTITION = "molecular-partition"
+    GET_ICP = "get-icp"
+    GET_KNN = "get-knn"
+    COMPARE = "compare"
+    COMPARE_PATCHES="compare-patches"
+    CLOSEST_MESH = "closest-mesh"
 
 class Metrics:
     UNIPROT_ID_COUNT = "uniprotID_count"
@@ -521,3 +536,388 @@ e_coli_k_type = {
     "ABU 83972": ktypes.k5,
     "JJ2434": ktypes.k5
 }
+strain_names = [
+    "MG1655",
+    "MNCRE44",
+    "APEC O1",
+    "CE10",
+    "G749",
+    "IAI39",
+    "IHE3034",
+    "APEC IMT5155",
+    "MCJCHV-1",
+    "NC101",
+    "NMEC O18",
+    "O18",
+    "RS218",
+    "S88",
+    "SF-088",
+    "SF-166",
+    "SF-173",
+    "SF-468",
+    "UM146",
+    "UTI89",
+    "VR50",
+    "ST648",
+    "Ecol_743",
+    "536",
+    "Ecol_448",
+    "EC958",
+    "Ecol_745",
+    "MVAST0167",
+    "NRG 857C",
+    "LF82",
+    "SE15",
+    "JJ1887",
+    "ED1a",
+    "606",
+    "K-15KW01",
+    "042",
+    "NA114",
+    "ZH193",
+    "ZH063",
+    "SaT040",
+    "CD306",
+    "ABU 83972",
+    "JJ2434",
+    "UMN026",
+    "MS6198",
+    "ST648",
+    "NMECO18",
+    "789",
+    "11128",
+    "11368",
+    "CFSAN027343",
+    "E2865",
+    "FORC_028",
+    "RM8426",
+    "2011C-3911",
+    "150",
+    "180-PT54",
+    "1130",
+    "28RC1",
+    "ATCC43889",
+    "EC4115",
+    "EDL933",
+    "FRIK944",
+    "FRIK2069",
+    "FRIK2455",
+    "JEONG-1266",
+    "Sakai",
+    "SRCC1675",
+    "SS52",
+    "TW14359",
+    "Xuzhou21",
+    "RM13514",
+    "2013C-4465",
+    "RM13516",
+    "042",
+    "90-9272",
+    "H10407",
+    "214-4",
+    "90-9269",
+    "ATCC 43886",
+    "90-9281",
+    "103605",
+    "2014EL-1345-2",
+    "E2348",
+    "CB9615",
+    "RM12579"
+]
+
+phat_matrix = {
+    "A": {"A": 5, "R": -6, "N": -2, "D": -5, "C": 1, "Q": -3, "E": -5, "G": 1, "H": -3, "I": 0,
+          "L": -1, "K": -7, "M": -1, "F": -1, "P": -3, "S": 2, "T": 0, "W": -4, "Y": -3, "V": 1},
+    "R": {"A": -6, "R": 9, "N": -3, "D": -7, "C": -8, "Q": -2, "E": -6, "G": -5, "H": -4, "I": -6,
+          "L": -6, "K": -1, "M": -6, "F": -7, "P": -7, "S": -6, "T": -6, "W": -7, "Y": -6, "V": -7},
+    "N": {"A": -2, "R": -3, "N": 11, "D": 2, "C": -2, "Q": 2, "E": 0, "G": -1, "H": 4, "I": -3,
+          "L": -3, "K": -2, "M": -2, "F": -1, "P": -4, "S": 1, "T": -1, "W": -5, "Y": 2, "V": -3},
+    "D": {"A": -5, "R": -7, "N": 2, "D": 12, "C": -7, "Q": 0, "E": 6, "G": -2, "H": -1, "I": -5,
+          "L": -5, "K": -5, "M": -5, "F": -5, "P": -5, "S": -4, "T": -5, "W": -7, "Y": -4, "V": -5},
+    "C": {"A": 1, "R": -8, "N": -2, "D": -7, "C": 7, "Q": -5, "E": -7, "G": -2, "H": -7, "I": -3,
+          "L": -2, "K": -10, "M": -2, "F": 0, "P": -8, "S": 1, "T": -1, "W": -4, "Y": -1, "V": -2},
+    "Q": {"A": -3, "R": -2, "N": 2, "D": 0, "C": -5, "Q": 9, "E": 1, "G": -2, "H": 2, "I": -3,
+          "L": -3, "K": -1, "M": -1, "F": -2, "P": -3, "S": -1, "T": -3, "W": 1, "Y": 0, "V": -3},
+    "E": {"A": -5, "R": -6, "N": 0, "D": 6, "C": -7, "Q": 9, "E": 12, "G": -3, "H": -1, "I": -5,
+          "L": -5, "K": -4, "M": -5, "F": -5, "P": -5, "S": -3, "T": -5, "W": -7, "Y": -2, "V": -5},
+    "G": {"A": 1, "R": -5, "N": -1, "D": -2, "C": -2, "Q": -2, "E": -3, "G": 9, "H": -4, "I": -2,
+          "L": -2, "K": -5, "M": -1, "F": -2, "P": -3, "S": 1, "T": -1, "W": -5, "Y": -3, "V": -2},
+    "H": {"A": -3, "R": -4, "N": 4, "D": -1, "C": -7, "Q": 2, "E": -1, "G": -4, "H": 11, "I": -5,
+          "L": -4, "K": -5, "M": -4, "F": -2, "P": -6, "S": -2, "T": -4, "W": -3, "Y": 3, "V": -5},
+    "I": {"A": 0, "R": -6, "N": -3, "D": -5, "C": -3, "Q": -3, "E": -5, "G": -2, "H": -5, "I": 5,
+          "L": 2, "K": -7, "M": 3, "F": 0, "P": -4, "S": -2, "T": -1, "W": -4, "Y": -3, "V": 3},
+    "L": {"A": -1, "R": -6, "N": -3, "D": -5, "C": -2, "Q": -3, "E": -5, "G": -2, "H": -4, "I": 2,
+          "L": 4, "K": -7, "M": 2, "F": 1, "P": -5, "S": -2, "T": -1, "W": -3, "Y": -2, "V": 1},
+    "K": {"A": -7, "R": -1, "N": -2, "D": -5, "C": -10, "Q": -1, "E": -4, "G": -5, "H": -5, "I": -7,
+          "L": -7, "K": 5, "M": -6, "F": -7, "P": -4, "S": -5, "T": -6, "W": -8, "Y": -4, "V": -8},
+    "M": {"A": -1, "R": -6, "N": -2, "D": -5, "C": -2, "Q": -1, "E": -5, "G": -1, "H": -4, "I": 3,
+          "L": 2, "K": -6, "M": 6, "F": 0, "P": -5, "S": -2, "T": 0, "W": -4, "Y": -2, "V": 1},
+    "F": {"A": -1, "R": -7, "N": -1, "D": -5, "C": 0, "Q": -2, "E": -5, "G": -2, "H": -2, "I": 0,
+          "L": 1, "K": -7, "M": 0, "F": 6, "P": -5, "S": -2, "T": -2, "W": 0, "Y": 4, "V": -1},
+    "P": {"A": -3, "R": -7, "N": -4, "D": -5, "C": -8, "Q": -3, "E": -5, "G": -3, "H": -6, "I": -4,
+          "L": -5, "K": -4, "M": -5, "F": -5, "P": 13, "S": -3, "T": 4, "W": -6, "Y": -5, "V": -4},
+    "S": {"A": 2, "R": -6, "N": 1, "D": -4, "C": 1, "Q": -1, "E": -3, "G": 1, "H": -2, "I": -2,
+          "L": -2, "K": -5, "M": -2, "F": -2, "P": -3, "S": 6, "T": 1, "W": -5, "Y": -2, "V": -2},
+    "T": {"A": 0, "R": -6, "N": -1, "D": -5, "C": -1, "Q": -3, "E": -5, "G": -1, "H": -4, "I": -1,
+          "L": -1, "K": -6, "M": 0, "F": -2, "P": 4, "S": 1, "T": 3, "W": -7, "Y": -3, "V": 0},
+    "W": {"A": -4, "R": -7, "N": -5, "D": -7, "C": 4, "Q": 1, "E": -7, "G": -5, "H": -3, "I": -4,
+          "L": -3, "K": -8, "M": -4, "F": 0, "P": -6, "S": -5, "T": -7, "W": 11, "Y": 1, "V": -4},
+    "Y": {"A": -3, "R": -6, "N": 2, "D": -4, "C": -1, "Q": 0, "E": -2, "G": -3, "H": 3, "I": -3,
+          "L": -2, "K": -4, "M": -2, "F": 4, "P": -5, "S": -2, "T": -3, "W": 1, "Y": 11, "V": -3},
+    "V": {"A": 1, "R": -7, "N": -3, "D": -5, "C": -2, "Q": -3, "E": -5, "G": -2, "H": -5, "I": 3,
+          "L": 1, "K": -8, "M": 1, "F": -1, "P": -4, "S": -2, "T": 0, "W": -4, "Y": -3, "V": 4}
+}
+
+# Pablo Gainza - LPDI STI EPFL 2018-2019
+# Released under an Apache License 2.0
+
+
+# radii for atoms in explicit case.
+radii = {}
+radii["N"] = "1.540000"
+radii["N"] = "1.540000"
+radii["O"] = "1.400000"
+radii["C"] = "1.740000"
+radii["H"] = "1.200000"
+radii["S"] = "1.800000"
+radii["P"] = "1.800000"
+radii["Z"] = "1.39"
+radii["X"] = "0.770000"  ## Radii of CB or CA in disembodied case.
+# This  polar hydrogen's names correspond to that of the program Reduce.
+polarHydrogens = {}
+polarHydrogens["ALA"] = ["H"]
+polarHydrogens["GLY"] = ["H"]
+polarHydrogens["SER"] = ["H", "HG"]
+polarHydrogens["THR"] = ["H", "HG1"]
+polarHydrogens["LEU"] = ["H"]
+polarHydrogens["ILE"] = ["H"]
+polarHydrogens["VAL"] = ["H"]
+polarHydrogens["ASN"] = ["H", "HD21", "HD22"]
+polarHydrogens["GLN"] = ["H", "HE21", "HE22"]
+polarHydrogens["ARG"] = ["H", "HH11", "HH12", "HH21", "HH22", "HE"]
+polarHydrogens["HIS"] = ["H", "HD1", "HE2"]
+polarHydrogens["TRP"] = ["H", "HE1"]
+polarHydrogens["PHE"] = ["H"]
+polarHydrogens["TYR"] = ["H", "HH"]
+polarHydrogens["GLU"] = ["H"]
+polarHydrogens["ASP"] = ["H"]
+polarHydrogens["LYS"] = ["H", "HZ1", "HZ2", "HZ3"]
+polarHydrogens["PRO"] = []
+polarHydrogens["CYS"] = ["H"]
+polarHydrogens["MET"] = ["H"]
+
+hbond_std_dev = np.pi / 3
+
+# Dictionary from an acceptor atom to its directly bonded atom on which to
+# compute the angle.
+acceptorAngleAtom = {}
+acceptorAngleAtom["O"] = "C"
+acceptorAngleAtom["O1"] = "C"
+acceptorAngleAtom["O2"] = "C"
+acceptorAngleAtom["OXT"] = "C"
+acceptorAngleAtom["OT1"] = "C"
+acceptorAngleAtom["OT2"] = "C"
+# Dictionary from acceptor atom to a third atom on which to compute the plane.
+acceptorPlaneAtom = {}
+acceptorPlaneAtom["O"] = "CA"
+# Dictionary from an H atom to its donor atom.
+donorAtom = {}
+donorAtom["H"] = "N"
+# Hydrogen bond information.
+# ARG
+# ARG NHX
+# Angle: NH1, HH1X, point and NH2, HH2X, point 180 degrees.
+# radii from HH: radii[H]
+# ARG NE
+# Angle: ~ 120 NE, HE, point, 180 degrees
+donorAtom["HH11"] = "NH1"
+donorAtom["HH12"] = "NH1"
+donorAtom["HH21"] = "NH2"
+donorAtom["HH22"] = "NH2"
+donorAtom["HE"] = "NE"
+
+# ASN
+# Angle ND2,HD2X: 180
+# Plane: CG,ND2,OD1
+# Angle CG-OD1-X: 120
+donorAtom["HD21"] = "ND2"
+donorAtom["HD22"] = "ND2"
+# ASN Acceptor
+acceptorAngleAtom["OD1"] = "CG"
+acceptorPlaneAtom["OD1"] = "CB"
+
+# ASP
+# Plane: CB-CG-OD1
+# Angle CG-ODX-point: 120
+acceptorAngleAtom["OD2"] = "CG"
+acceptorPlaneAtom["OD2"] = "CB"
+
+# GLU
+# PLANE: CD-OE1-OE2
+# ANGLE: CD-OEX: 120
+# GLN
+# PLANE: CD-OE1-NE2
+# Angle NE2,HE2X: 180
+# ANGLE: CD-OE1: 120
+donorAtom["HE21"] = "NE2"
+donorAtom["HE22"] = "NE2"
+acceptorAngleAtom["OE1"] = "CD"
+acceptorAngleAtom["OE2"] = "CD"
+acceptorPlaneAtom["OE1"] = "CG"
+acceptorPlaneAtom["OE2"] = "CG"
+
+# HIS Acceptors: ND1, NE2
+# Plane ND1-CE1-NE2
+# Angle: ND1-CE1 : 125.5
+# Angle: NE2-CE1 : 125.5
+acceptorAngleAtom["ND1"] = "CE1"
+acceptorAngleAtom["NE2"] = "CE1"
+acceptorPlaneAtom["ND1"] = "NE2"
+acceptorPlaneAtom["NE2"] = "ND1"
+
+# HIS Donors: ND1, NE2
+# Angle ND1-HD1 : 180
+# Angle NE2-HE2 : 180
+donorAtom["HD1"] = "ND1"
+donorAtom["HE2"] = "NE2"
+
+# TRP Donor: NE1-HE1
+# Angle NE1-HE1 : 180
+donorAtom["HE1"] = "NE1"
+
+# LYS Donor NZ-HZX
+# Angle NZ-HZX : 180
+donorAtom["HZ1"] = "NZ"
+donorAtom["HZ2"] = "NZ"
+donorAtom["HZ3"] = "NZ"
+
+# TYR acceptor OH
+# Plane: CE1-CZ-OH
+# Angle: CZ-OH 120
+acceptorAngleAtom["OH"] = "CZ"
+acceptorPlaneAtom["OH"] = "CE1"
+
+# TYR donor: OH-HH
+# Angle: OH-HH 180
+donorAtom["HH"] = "OH"
+acceptorPlaneAtom["OH"] = "CE1"
+
+# SER acceptor:
+# Angle CB-OG-X: 120
+acceptorAngleAtom["OG"] = "CB"
+
+# SER donor:
+# Angle: OG-HG-X: 180
+donorAtom["HG"] = "OG"
+
+# THR acceptor:
+# Angle: CB-OG1-X: 120
+acceptorAngleAtom["OG1"] = "CB"
+
+# THR donor:
+# Angle: OG1-HG1-X: 180
+donorAtom["HG1"] = "OG1"
+
+import tempfile
+
+masif_opts = {}
+# Default directories
+masif_opts["raw_pdb_dir"] = "data_preparation/00-raw_pdbs/"
+masif_opts["pdb_chain_dir"] = "data_preparation/01-benchmark_pdbs/"
+masif_opts["ply_chain_dir"] = "data_preparation/01-benchmark_surfaces/"
+masif_opts["tmp_dir"] = tempfile.gettempdir()
+masif_opts["ply_file_template"] = masif_opts["ply_chain_dir"] + "/{}_{}.ply"
+
+# Surface features
+masif_opts["use_hbond"] = True
+masif_opts["use_hphob"] = True
+masif_opts["use_apbs"] = True
+masif_opts["compute_iface"] = True
+# Mesh resolution. Everything gets very slow if it is lower than 1.0
+masif_opts["mesh_res"] = 1.0
+masif_opts["feature_interpolation"] = True
+
+# Coords params
+masif_opts["radius"] = 12.0
+
+# Neural network patch application specific parameters.
+masif_opts["ppi_search"] = {}
+masif_opts["ppi_search"]["training_list"] = "lists/training.txt"
+masif_opts["ppi_search"]["testing_list"] = "lists/testing.txt"
+masif_opts["ppi_search"]["max_shape_size"] = 200
+masif_opts["ppi_search"]["max_distance"] = 12.0  # Radius for the neural network.
+masif_opts["ppi_search"][
+    "masif_precomputation_dir"
+] = "data_preparation/04b-precomputation_12A/precomputation/"
+masif_opts["ppi_search"]["feat_mask"] = [1.0] * 5
+masif_opts["ppi_search"]["max_sc_filt"] = 1.0
+masif_opts["ppi_search"]["min_sc_filt"] = 0.5
+masif_opts["ppi_search"]["pos_surf_accept_probability"] = 1.0
+masif_opts["ppi_search"]["pos_interface_cutoff"] = 1.0
+masif_opts["ppi_search"]["range_val_samples"] = 0.9  # 0.9 to 1.0
+masif_opts["ppi_search"]["cache_dir"] = "nn_models/sc05/cache/"
+masif_opts["ppi_search"]["model_dir"] = "nn_models/sc05/all_feat/model_data/"
+masif_opts["ppi_search"]["desc_dir"] = "descriptors/sc05/all_feat/"
+masif_opts["ppi_search"]["gif_descriptors_out"] = "gif_descriptors/"
+# Parameters for shape complementarity calculations.
+masif_opts["ppi_search"]["sc_radius"] = 12.0
+masif_opts["ppi_search"]["sc_interaction_cutoff"] = 1.5
+masif_opts["ppi_search"]["sc_w"] = 0.25
+
+# Neural network patch application specific parameters.
+masif_opts["site"] = {}
+masif_opts["site"]["training_list"] = "lists/training.txt"
+masif_opts["site"]["testing_list"] = "lists/testing.txt"
+masif_opts["site"]["max_shape_size"] = 100
+masif_opts["site"]["n_conv_layers"] = 3
+masif_opts["site"]["max_distance"] = 9.0  # Radius for the neural network.
+masif_opts["site"][
+    "masif_precomputation_dir"
+] = "data_preparation/04a-precomputation_9A/precomputation/"
+masif_opts["site"]["range_val_samples"] = 0.9  # 0.9 to 1.0
+masif_opts["site"]["model_dir"] = "nn_models/all_feat_3l/model_data/"
+masif_opts["site"]["out_pred_dir"] = "output/all_feat_3l/pred_data/"
+masif_opts["site"]["out_surf_dir"] = "output/all_feat_3l/pred_surfaces/"
+masif_opts["site"]["feat_mask"] = [1.0] * 5
+
+# Neural network ligand application specific parameters.
+masif_opts["ligand"] = {}
+masif_opts["ligand"]["assembly_dir"] = "data_preparation/00b-pdbs_assembly"
+masif_opts["ligand"]["ligand_coords_dir"] = "data_preparation/00c-ligand_coords"
+masif_opts["ligand"][
+    "masif_precomputation_dir"
+] = "data_preparation/04a-precomputation_12A/precomputation/"
+masif_opts["ligand"]["max_shape_size"] = 200
+masif_opts["ligand"]["feat_mask"] = [1.0] * 5
+masif_opts["ligand"]["train_fract"] = 0.9 * 0.8
+masif_opts["ligand"]["val_fract"] = 0.1 * 0.8
+masif_opts["ligand"]["test_fract"] = 0.2
+masif_opts["ligand"]["tfrecords_dir"] = "data_preparation/tfrecords"
+masif_opts["ligand"]["max_distance"] = 12.0
+masif_opts["ligand"]["n_classes"] = 7
+masif_opts["ligand"]["feat_mask"] = [1.0, 1.0, 1.0, 1.0, 1.0]
+masif_opts["ligand"]["costfun"] = "dprime"
+masif_opts["ligand"]["model_dir"] = "nn_models/all_feat/"
+masif_opts["ligand"]["test_set_out_dir"] = "test_set_predictions/"
+
+kd_scale = {}
+kd_scale["ILE"] = 4.5
+kd_scale["VAL"] = 4.2
+kd_scale["LEU"] = 3.8
+kd_scale["PHE"] = 2.8
+kd_scale["CYS"] = 2.5
+kd_scale["MET"] = 1.9
+kd_scale["ALA"] = 1.8
+kd_scale["GLY"] = -0.4
+kd_scale["THR"] = -0.7
+kd_scale["SER"] = -0.8
+kd_scale["TRP"] = -0.9
+kd_scale["TYR"] = -1.3
+kd_scale["PRO"] = -1.6
+kd_scale["HIS"] = -3.2
+kd_scale["GLU"] = -3.5
+kd_scale["GLN"] = -3.5
+kd_scale["ASP"] = -3.5
+kd_scale["ASN"] = -3.5
+kd_scale["LYS"] = -3.9
+kd_scale["ARG"] = -4.5

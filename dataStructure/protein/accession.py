@@ -5,11 +5,11 @@ from typing import Optional, Dict, List
 
 from fasta_reader import read_fasta
 
-from dataStructure.protein.structure import StructureFile
+from dataStructure.protein.structure.structure import StructureFile
 from lib.const import AllowedExt
 from query import FastaQuery
 
-acceptable_sites = ["ACT_SITE", "BINDING", "Motif", "Binding site", "Active site"]
+acceptable_sites = ["ACT_SITE", "BINDING", "Motif", "Binding site", "Active site", "Site"]
 
 
 def query_fasta(self) -> None:
@@ -29,10 +29,14 @@ class UniProtIDFastaFile(StructureFile):
 
     @property
     def fasta(self) -> str:
-        if self._sequence is None:
-            iterator = read_fasta(self._path)
-            fasta_item = iterator.read_item()
-            self._sequence = fasta_item.sequence
+        try:
+            if self._sequence is None:
+                iterator = read_fasta(self._path)
+                fasta_item = iterator.read_item()
+                self._sequence = fasta_item.sequence
+        except StopIteration as ex:
+            logging.warning("File is empty returning: \"\"")
+            self._sequence = ""
         return self._sequence
 
 
@@ -42,7 +46,7 @@ class UniProtAcessionFile(StructureFile):
         super().__init__(path)
         self._uniprot_structural_data = None
         self._binding_site_residues = None
-
+        self._go_terms = None
     @property
     def structural_data(self) -> Dict:
         if self._uniprot_structural_data is None:
@@ -52,6 +56,19 @@ class UniProtAcessionFile(StructureFile):
             except FileNotFoundError:
                 raise FileNotFoundError(f"Couldn't open {self.path}")
         return self._uniprot_structural_data
+
+    @property
+    def go_terms(self):
+        if self._go_terms is None:
+            go_terms = []
+            try:
+                for entry in self.structural_data['uniProtKBCrossReferences']:
+                    if entry["id"].startswith("GO:"):
+                        go_terms.append(entry["id"])
+                self._go_terms = go_terms
+            except KeyError as ex:
+                return None
+        return self._go_terms
 
     # def query_accession_data(self) -> None:
     #    uni_query = UniProtIDQuery(self._id, self._base)

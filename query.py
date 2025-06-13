@@ -111,6 +111,7 @@ class UniProtIDQuery(HTMLQuery):
 
     @property
     def html_base(self) -> str:
+      #  return "https://rest.uniprot.org/uniref/"
         return "https://rest.uniprot.org/uniprotkb/"
         #return "https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=100&accession="
 
@@ -125,6 +126,13 @@ class UniProtIDQuery(HTMLQuery):
    #     return {UNIPROT_RESPONSE.ACCESSION.value: accession,
    #             UNIPROT_RESPONSE.STRUCTURE.value: pdb_results}
 
+class UniRefQuery(HTMLQuery):
+    """
+
+    """
+    @property
+    def html_base(self) -> str:
+        return "https://rest.uniprot.org/uniref/"
 
 class FastaQuery(HTMLQuery):
     """

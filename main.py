@@ -10,10 +10,14 @@ from pathlib import Path
 # from Commands.Analyze import Analyze
 from Commands.calculate.Characteristics import CharacteristicsFactory, FindCustomBindingSite
 from Commands.Structure.Structure import StructureFactory
+from Commands.calculate.calculate import CalculateMeshes, CalculateContacts, AlignDataset, ReassignBondsViaAlignment, \
+    CalculateSurfaceOfInterest, CalculateKNN, CalculateICP, CalculateComparison, AlignMeshes, CompleteWorkFlow, \
+    ScoreSurfacePatches, GetClosestVerticiesToMesh
+from Commands.calculate.similarity_score import CalculateClassFactory
 from Commands.repair import RepairStructures
 from Commands.fasta_parser import FastaData, ParseMapping, MappPDBToGenBankHits
 from Commands.similarity_metrics import SimilarityMetricBuilder
-from lib.const import AnalysisMode, APP_DIRECTORY, StructureCharacteristicsMode, ConfigOptions, \
+from lib.const import  APP_DIRECTORY, StructureCharacteristicsMode, ConfigOptions, \
     SupportedStructureFileTypes, StructureBuildMode, SimilarityDistance, CalculateOptions, FoldingEnvironment
 # from Commands.repair import RepairPDB
 import typer
@@ -54,13 +58,50 @@ def find_characteristics(mode: StructureCharacteristicsMode =
         command.run()
 
 @app.command()
-def calculate(mode: CalculateOptions = typer.Argument(..., help=f"Type of calculation to be performed. Please choose "
+def calculate(database: Path = typer.Argument(..., help="Path of database of interest for different modes."),
+              number_of_threads: int = typer.Option(default=os.cpu_count(),
+                                               #  prompt="Specify the number of threads for this process?",
+                                               help="Option specifying number of threads to use for this process. "
+                                                    "Default is number of logical cores."),
+              structure: SupportedStructureFileTypes = typer.Argument(SupportedStructureFileTypes.CIF,
+                                                            help="Structure type to perform analysis on."),
+            option: CalculateOptions = typer.Argument(..., help=f"Type of calculation to be performed. Please choose "
                                                                 f"from the following options {CalculateOptions.CLUSTER} "
                                                                 f"{CalculateOptions.SIMILARITY_DISTANCE}"),
+              mode = typer.Argument(default=..., help=f"Type of calculation to be performed"),
+              structure_type = typer.Argument(..., help=f"Type of Structure"),
+              coord_type = typer.Argument(..., help=f"Type of coords"),
+              output_dir = typer.Argument(..., help=f"Output directory")
 
               ):
-    pass
-
+    if option == CalculateOptions.CLUSTER.value:
+        print("Calculating clusers")
+    elif option == CalculateOptions.SIMILARITY_DISTANCE:
+        CalculateClassFactory().build(mode, structure_type, coord_type).run()
+    elif option == CalculateOptions.GET_REP:
+        cm = CalculateContacts(output_dir)
+        cm.run()
+    elif option == CalculateOptions.ALIGN_DATA:
+        command = AlignDataset(database,structure ,Path(output_dir))
+        command.run()
+    elif option == CalculateOptions.REASSIGN_CONTACTS:
+        command = ReassignBondsViaAlignment(output_dir)
+        command.run()
+    elif option == CalculateOptions.MOLECULAR_PARTITION:
+        command = CalculateSurfaceOfInterest(output_dir)
+        command.run()
+    elif option == CalculateOptions.GET_MESH:
+        CalculateMeshes(database,structure).run()
+    elif option == CalculateOptions.GET_KNN:
+        CompleteWorkFlow(output_dir).run()
+    elif option == CalculateOptions.GET_ICP:
+        AlignMeshes(database,structure, output_dir).run()
+    elif option == CalculateOptions.COMPARE:
+        CalculateComparison(output_dir).run()
+    elif option == CalculateOptions.COMPARE_PATCHES:
+        ScoreSurfacePatches(database,structure, output_dir).run()
+    elif option==CalculateOptions.CLOSEST_MESH:
+        GetClosestVerticiesToMesh(database,structure,output_dir).run()
 
 @app.command()
 def protein_similarity(mode: SimilarityDistance = typer.Argument(..., help="Mode of how to calculate "
@@ -78,8 +119,9 @@ def protein_similarity(mode: SimilarityDistance = typer.Argument(..., help="Mode
 @app.command()
 def get_structures(mode: StructureBuildMode =
                    typer.Argument(..., help="Mode for getting structures")
-                   , uniprot_id_list: Path = typer.Option(...,
+                   , uniprot_id_list: Path = typer.Option(None,
                                                           help="Path to UniProtID list to find structures for."),
+                   args = typer.Option(None, help="Extra args to pass to the structure builder."),
                    sequence_db: Optional[Path] = None,
                    compute_environment: FoldingEnvironment = None):
     """
@@ -87,7 +129,7 @@ def get_structures(mode: StructureBuildMode =
     PDB databank. If no structure is available, ColabFold will run locally to generate the structure.
     """
 
-    command = StructureFactory().build(mode, uniprot_id_list, compute_environment)
+    command = StructureFactory().build(mode, uniprot_id_list, args, compute_environment)
     command.run()
 
 
@@ -105,15 +147,15 @@ def repair(new_dataset_location: Path = typer.Argument(..., help="Where you'd li
     command.run()
 
 
-@app.command()
-def analyze(mode: AnalysisMode = typer.Argument(..., help="Mode for analysis.", rich_help_panel="Mode")):
-    """
-    This command is to analyze a given database of PDB. Supported analysis modes: plddt - calculates plddt values of
-    homology structures made from AF2; STATS - provides stats on database provided such as number of crystal and
-    homology structures and average values per uniProtID..
-    """
-    command = Analyze(mode)
-    command.run()
+#@app.command()
+#def analyze(mode: AnalysisMode = typer.Argument(..., help="Mode for analysis.", rich_help_panel="Mode")):
+#    """
+#    This command is to analyze a given database of PDB. Supported analysis modes: plddt - calculates plddt values of
+#    homology structures made from AF2; STATS - provides stats on database provided such as number of crystal and
+#    homology structures and average values per uniProtID..
+#    """
+#    command = Analyze(mode)
+#    command.run()
 
 
 @app.command()
@@ -143,21 +185,27 @@ def map_represntatives_pdb(mapping_json_file: str = typer.Argument(..., help="Na
 
 
 @app.callback()
-def main(database: Path = typer.Argument(..., help="Path of database of interest for different modes."),
-         number_of_threads: int = typer.Option(default=os.cpu_count(),
-                                               #  prompt="Specify the number of threads for this process?",
-                                               help="Option specifying number of threads to use for this process. "
-                                                    "Default is number of logical cores."),
-         mode: SupportedStructureFileTypes = typer.Argument(SupportedStructureFileTypes.CIF,
-                                                            help="Structure type to perform analysis on.")):
-    database = os.path.abspath(Path(database))
-    config = {
-        ConfigOptions.DATABASE_LOCATION.value: database,
-        ConfigOptions.THREAD_COUNT.value: number_of_threads,
-        ConfigOptions.STRUCTURE_TYPE.value: mode.value
-    }
-    with open(APP_DIRECTORY + "/config.json", "w") as json_config:
-        json.dump(config, json_config)
+def main():
+    """
+
+    Parameters
+    ----------
+    database
+    number_of_threads
+    mode
+
+    Returns
+    -------
+
+    """
+    #database = os.path.abspath(Path(database))
+    ##config = {
+    #    ConfigOptions.DATABASE_LOCATION.value: database,
+    #    ConfigOptions.THREAD_COUNT.value: number_of_threads,
+    #    ConfigOptions.STRUCTURE_TYPE.value: mode.value
+    #}
+    #with open(APP_DIRECTORY + "/config.json", "w") as json_config:
+    #    json.dump(config, json_config)
 
 
 if __name__ == '__main__':
